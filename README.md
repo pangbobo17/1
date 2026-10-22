@@ -1,5 +1,24 @@
 # 歌词对齐（LyricSync）
 
+包含两个版本：
+
+- **网页版**（`web/`）：在 iPhone 的 Safari 里直接用，不需要 Mac，也不用上架。识别用 Whisper，在手机浏览器里本地运行。
+- **iOS 原生版**（`App/` + `Packages/`）：需要 Mac 或云端构建 + 苹果开发者账号才能装到手机。
+
+## 网页版
+
+功能与原生版相同：导入音频和歌词 → 自动对齐（或自动识别歌词）→ 播放核对、微调、手动打点 → 导出 LRC / 逐字 LRC / SRT。时间轴会自动保存在本机浏览器里。
+
+- 识别：[transformers.js](https://github.com/huggingface/transformers.js) 运行 Whisper（tiny / base / small，带逐词时间戳），模型首次使用时从 Hugging Face 下载并缓存；支持 WebGPU 时自动使用
+- 普通话用 [pinyin-pro](https://github.com/zh-lx/pinyin-pro) 转拼音比对，识别成同音字或繁体字也能对上
+- 对齐算法 `web/align.js` 与 Swift 版一致，测试：`node web/align.test.mjs`
+- 部署：推送到 `master` 后由 `.github/workflows/pages.yml` 发布到 GitHub Pages（仓库需公开，或使用付费 GitHub 方案；并在 Settings → Pages 里把 Source 设为 GitHub Actions）
+- 本地预览：`cd web && python3 -m http.server`，然后打开 http://localhost:8000
+
+---
+
+以下是 iOS 原生版的说明。
+
 一款 iOS / iPadOS 应用：导入音乐或音频，粘贴或导入歌词，生成**逐行**（以及逐字）的时间轴，导出 LRC / SRT。不提供歌词时会自动识别文字并分行。
 
 ## 功能

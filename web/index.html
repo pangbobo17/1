@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="歌词对齐">
+  <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+  <title>歌词对齐</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>歌词对齐</h1>
+      <p class="sub">导入歌曲和歌词，逐行生成时间轴，导出 LRC / SRT。识别在你的手机上完成，音频不会上传。</p>
+    </header>
+
+    <section class="panel" aria-labelledby="setup-title">
+      <h2 id="setup-title" class="visually-hidden">设置</h2>
+
+      <div class="field">
+        <span class="label">音频</span>
+        <label class="file-btn" for="audio-input">
+          <span id="audio-name">选择音乐或录音</span>
+          <span id="audio-meta" class="meta"></span>
+        </label>
+        <input id="audio-input" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.flac" hidden>
+      </div>
+
+      <div class="field">
+        <div class="label-row">
+          <label class="label" for="lyrics">歌词</label>
+          <label class="link-btn" for="lyrics-file">导入 .txt / .lrc</label>
+          <input id="lyrics-file" type="file" accept=".txt,.lrc,text/plain" hidden>
+        </div>
+        <textarea id="lyrics" rows="8" spellcheck="false"
+          placeholder="每行一句，例如：&#10;窗外的麻雀&#10;在电线杆上多嘴&#10;你说这一句&#10;很有夏天的感觉&#10;&#10;留空则自动识别歌词并分行"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label class="label" for="lang">语言</label>
+          <select id="lang">
+            <option value="zh">普通话</option>
+            <option value="yue">粤语</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="model">识别模型</label>
+          <select id="model">
+            <option value="onnx-community/whisper-tiny_timestamped">快速（约 40MB）</option>
+            <option value="onnx-community/whisper-base_timestamped" selected>标准（约 80MB）</option>
+            <option value="onnx-community/whisper-small_timestamped">精准（约 250MB，较慢）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-auto" class="primary" type="button" disabled>自动对齐</button>
+        <button id="btn-manual" class="secondary" type="button" disabled>手动打点</button>
+      </div>
+      <p class="hint">模型只在第一次使用时下载，之后会缓存在手机里。识别时请保持页面在前台。</p>
+
+      <div id="status" class="status" hidden>
+        <div class="bar"><div id="status-fill" class="fill"></div></div>
+        <p id="status-text"></p>
+      </div>
+    </section>
+
+    <section id="editor" class="editor" hidden aria-labelledby="editor-title">
+      <div class="editor-head">
+        <h2 id="editor-title">时间轴</h2>
+        <p id="editor-hint" class="meta"></p>
+      </div>
+      <ol id="lines" class="lines"></ol>
+
+      <div class="export">
+        <h3>导出</h3>
+        <div class="seg" role="radiogroup" aria-label="格式">
+          <button type="button" role="radio" data-format="lrc" aria-checked="true">LRC 逐行</button>
+          <button type="button" role="radio" data-format="klrc" aria-checked="false">LRC 逐字</button>
+          <button type="button" role="radio" data-format="srt" aria-checked="false">SRT 字幕</button>
+        </div>
+        <textarea id="export-text" rows="6" readonly aria-label="导出内容"></textarea>
+        <div class="actions">
+          <button id="btn-save" class="primary" type="button">存储 / 分享文件</button>
+          <button id="btn-copy" class="secondary" type="button">复制</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="player" class="player" hidden>
+    <input id="seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="播放进度">
+    <div class="player-row">
+      <span id="clock" class="clock">00:00.00</span>
+      <button id="btn-back" class="icon" type="button" aria-label="后退 5 秒">−5s</button>
+      <button id="btn-play" class="play" type="button" aria-label="播放">▶</button>
+      <button id="btn-fwd" class="icon" type="button" aria-label="前进 5 秒">+5s</button>
+      <button id="btn-undo" class="icon" type="button" aria-label="撤销" disabled>撤销</button>
+      <button id="btn-tap" class="tap" type="button">打点</button>
+    </div>
+  </div>
+  <audio id="audio" preload="auto" playsinline></audio>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
