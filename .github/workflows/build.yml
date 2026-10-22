@@ -23,8 +23,9 @@ jobs:
 
       - name: Build app (simulator, unsigned)
         run: |
-          set -o pipefail
+          status=0
           xcodebuild -project LyricSync.xcodeproj -scheme LyricSync \
             -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug CODE_SIGNING_ALLOWED=NO build | grep -E "error:|warning: .*LyricSync|BUILD" || true
-          test "${PIPESTATUS[0]}" -eq 0
+            -configuration Debug CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || status=$?
+          grep -E "error:|BUILD (SUCCEEDED|FAILED)" build.log || tail -50 build.log
+          exit $status
