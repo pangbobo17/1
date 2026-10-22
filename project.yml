@@ -11,6 +11,7 @@ targets:
     type: application
     platform: iOS
     sources: [App/LyricSync]
+    scheme: {}
     dependencies:
       - package: LyricsAlignCore
     info:

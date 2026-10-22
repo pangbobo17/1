@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Test alignment core
+        run: swift test --package-path Packages/LyricsAlignCore
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen
+
+      - name: Build app (simulator, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -project LyricSync.xcodeproj -scheme LyricSync \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO build | grep -E "error:|warning: .*LyricSync|BUILD" || true
+          test "${PIPESTATUS[0]}" -eq 0
