@@ -7,7 +7,7 @@
 
 ## 网页版
 
-功能与原生版相同：导入音频和歌词 → 自动对齐（或自动识别歌词）→ 播放核对、微调、手动打点 → 导出 LRC / 逐字 LRC / SRT。时间轴会自动保存在本机浏览器里。
+四个标签页：**制作**（导入歌曲和歌词，自动对齐或手动打点）、**时间轴**（逐字高亮播放、单句微调、慢放、整体偏移、导出 LRC / 逐字 LRC / SRT）、**作品**（多首歌连同音频保存在本机 IndexedDB）、**设置**（默认语言和模型、存储空间、删除已下载的模型）。
 
 - 识别：[transformers.js](https://github.com/huggingface/transformers.js) 运行 Whisper（tiny / base / small，带逐词时间戳），模型首次使用时从 Hugging Face 下载并缓存；支持 WebGPU 时自动使用
 - 普通话用 [pinyin-pro](https://github.com/zh-lx/pinyin-pro) 转拼音比对，识别成同音字或繁体字也能对上
