@@ -22,9 +22,9 @@ final class LyricsAlignCoreTests: XCTestCase {
         ]
         let lines = LyricsAligner.align(lines: ["你好世界", "再见"], recognized: recognized, duration: 10)
         XCTAssertEqual(lines.count, 2)
-        XCTAssertEqual(lines[0].start, 2, accuracy: 0.001)
-        XCTAssertEqual(lines[0].end, 4, accuracy: 0.001)
-        XCTAssertEqual(lines[1].start, 6, accuracy: 0.001)
+        XCTAssertEqual(lines[0].start!, 2, accuracy: 0.001)
+        XCTAssertEqual(lines[0].end!, 4, accuracy: 0.001)
+        XCTAssertEqual(lines[1].start!, 6, accuracy: 0.001)
         XCTAssertEqual(lines[1].confidence, 1)
     }
 
@@ -37,7 +37,7 @@ final class LyricsAlignCoreTests: XCTestCase {
         let lines = LyricsAligner.align(lines: ["你好世界", "再见朋友"], recognized: recognized,
                                         duration: 6, options: options)
         XCTAssertEqual(lines[0].confidence, 1)
-        XCTAssertEqual(lines[1].start, 4, accuracy: 0.001)
+        XCTAssertEqual(lines[1].start!, 4, accuracy: 0.001)
         XCTAssertFalse(lines[1].words[1].isMatched)
         XCTAssertEqual(lines[1].words[1].start, lines[1].words[0].end, accuracy: 0.001)
     }
@@ -46,8 +46,8 @@ final class LyricsAlignCoreTests: XCTestCase {
         let recognized = [TimedToken(text: "hello darkness", start: 1, end: 2),
                           TimedToken(text: "my old friend", start: 2.2, end: 3.5)]
         let lines = LyricsAligner.align(lines: ["Hello darkness, my old friend"], recognized: recognized, duration: 4)
-        XCTAssertEqual(lines[0].start, 1, accuracy: 0.001)
-        XCTAssertEqual(lines[0].end, 3.5, accuracy: 0.001)
+        XCTAssertEqual(lines[0].start!, 1, accuracy: 0.001)
+        XCTAssertEqual(lines[0].end!, 3.5, accuracy: 0.001)
     }
 
     func testNoRecognitionSpreadsEvenly() {
@@ -75,5 +75,32 @@ final class LyricsAlignCoreTests: XCTestCase {
     func testCleanLyricsText() {
         let raw = "[ti:歌名]\n[00:01.00]第一句\n\n[Chorus]\n第二句 <00:02.00>\n"
         XCTAssertEqual(LyricsText.lines(from: raw), ["第一句", "第二句"])
+    }
+
+    func testSegmenterBreaksBeforeExceedingLimit() {
+        let segments = [TimedToken(text: "大家好", start: 0, end: 1), TimedToken(text: "欢迎来到", start: 1, end: 2),
+                        TimedToken(text: "我的频道", start: 2, end: 3)]
+        XCTAssertEqual(LineSegmenter.lines(from: segments, maxUnitsPerLine: 10).map(\.text), ["大家好欢迎来到", "我的频道"])
+    }
+
+    func testExportSkipsUntimedLinesAndChainsSRTEnds() {
+        let lines = [AlignedLine(text: "a", start: 1, end: 1), AlignedLine(text: "b", start: 4, end: 4),
+                     AlignedLine(text: "c", start: nil, end: nil)]
+        XCTAssertEqual(LyricsExporter.export(lines, format: .srt),
+                       "1\n00:00:01,000 --> 00:00:04,000\na\n\n2\n00:00:04,000 --> 00:00:07,000\nb\n")
+        XCTAssertEqual(LyricsExporter.export(lines, format: .lrc), "[00:01.00]a\n[00:04.00]b\n")
+    }
+
+    func testSetStartShiftsWordsOrSetsTime() {
+        var tapped = AlignedLine(text: "x", start: nil, end: nil)
+        tapped.setStart(2.345)
+        XCTAssertEqual(tapped.start, 2.35)
+        var aligned = AlignedLine(text: "你好", start: 1, end: 2,
+                                  words: [AlignedWord(text: "你", start: 1, end: 1.5, isMatched: true),
+                                          AlignedWord(text: "好", start: 1.5, end: 2, isMatched: true)])
+        aligned.setStart(3)
+        XCTAssertEqual(aligned.start, 3)
+        XCTAssertEqual(aligned.end!, 4, accuracy: 0.001)
+        XCTAssertEqual(aligned.words[1].start, 3.5, accuracy: 0.001)
     }
 }

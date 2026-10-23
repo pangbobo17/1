@@ -22,7 +22,9 @@ public enum LineSegmenter {
         for segment in segments {
             let trimmed = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
-            if let last = words.last, segment.start - last.end >= pause || units >= maxUnitsPerLine {
+            let segmentUnits = Tokenizer.tokenize(trimmed).count
+            // 停顿够长，或者放进这一段就超出每行上限，就先换行
+            if let last = words.last, segment.start - last.end >= pause || units + segmentUnits > maxUnitsPerLine {
                 flush()
             }
             if let prev = words.last?.text.last, let next = trimmed.first,
@@ -30,7 +32,7 @@ public enum LineSegmenter {
                 words[words.count - 1].text.append(" ")
             }
             words.append(AlignedWord(text: trimmed, start: segment.start, end: segment.end, isMatched: true))
-            units += Tokenizer.tokenize(trimmed).count
+            units += segmentUnits
             if let end = trimmed.last, "。！？!?.".contains(end) { flush() }
         }
         flush()

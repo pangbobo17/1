@@ -2,6 +2,7 @@ name: Build
 
 on:
   push:
+    paths: ['App/**', 'Packages/**', 'project.yml', '.github/workflows/build.yml']
   workflow_dispatch:
 
 jobs:

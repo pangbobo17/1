@@ -19,22 +19,32 @@ public enum LyricsExporter {
                               artist: String? = nil) -> String {
         switch format {
         case .lrc, .enhancedLRC:
+            let lines = lines.filter { $0.start != nil }
             var out: [String] = []
             if let title, !title.isEmpty { out.append("[ti:\(title)]") }
             if let artist, !artist.isEmpty { out.append("[ar:\(artist)]") }
             for line in lines {
+                let start = line.start ?? 0
                 if format == .enhancedLRC, !line.words.isEmpty {
                     let body = line.words.map { "<\(lrcTimestamp($0.start))>\($0.text)" }.joined()
-                    out.append("[\(lrcTimestamp(line.start))]\(body)<\(lrcTimestamp(line.end))>")
+                    out.append("[\(lrcTimestamp(start))]\(body)<\(lrcTimestamp(line.end ?? start))>")
                 } else {
-                    out.append("[\(lrcTimestamp(line.start))]\(line.text)")
+                    out.append("[\(lrcTimestamp(start))]\(line.text)")
                 }
             }
             return out.joined(separator: "\n") + "\n"
         case .srt:
-            return lines.enumerated().map { index, line in
-                let end = max(line.end, line.start + 0.5)
-                return "\(index + 1)\n\(srtTimestamp(line.start)) --> \(srtTimestamp(end))\n\(line.text)\n"
+            let timed = lines.filter { $0.start != nil }
+            return timed.enumerated().map { index, line in
+                let start = line.start ?? 0
+                let nextStart = index + 1 < timed.count ? timed[index + 1].start : nil
+                let end: TimeInterval
+                if let lineEnd = line.end, lineEnd > start + 0.05 {
+                    end = lineEnd
+                } else {
+                    end = nextStart ?? start + 3
+                }
+                return "\(index + 1)\n\(srtTimestamp(start)) --> \(srtTimestamp(end))\n\(line.text)\n"
             }.joined(separator: "\n")
         }
     }
