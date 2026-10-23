@@ -31,12 +31,16 @@ const els = {
 };
 
 const LANGS = [
+  { value: 'auto', label: '自动识别', desc: '先听几段判断语言，多花几秒', whisper: null },
   { value: 'zh', label: '普通话', whisper: 'chinese' },
   { value: 'yue', label: '粤语', whisper: 'chinese' },
   { value: 'en', label: 'English', whisper: 'english' },
   { value: 'ja', label: '日本語', whisper: 'japanese' },
   { value: 'ko', label: '한국어', whisper: 'korean' },
 ];
+// 自动识别出的语言代码 → 显示名称
+const LANG_NAMES = { zh: '中文', yue: '粤语', en: '英语', ja: '日语', ko: '韩语', fr: '法语', de: '德语', es: '西班牙语',
+  ru: '俄语', it: '意大利语', pt: '葡萄牙语', th: '泰语', vi: '越南语', id: '印尼语', ms: '马来语' };
 const MODELS = [
   { value: 'onnx-community/whisper-tiny_timestamped', label: '快速', desc: '约 40MB，速度最快，准确度一般' },
   { value: 'onnx-community/whisper-base_timestamped', label: '标准', desc: '约 80MB，推荐' },
@@ -62,8 +66,8 @@ const TABS = ['create', 'editor', 'library', 'settings'];
 
 const state = {
   tab: 'create',
-  settings: { defaultLang: 'zh', defaultModel: MODELS[1].value },
-  draft: { file: null, name: '', peaks: null, duration: 0, lang: 'zh', model: MODELS[1].value, decoding: null,
+  settings: { defaultLang: 'auto', defaultModel: MODELS[1].value },
+  draft: { file: null, name: '', peaks: null, duration: 0, lang: 'auto', model: MODELS[1].value, decoding: null,
     mode: 'lyrics', script: 'hans', lineLength: 'normal' },
   project: null,     // {id, kind: 'lyrics'|'subtitle', name, hue, lyrics, lines, lang, model, duration, peaks, createdAt, updatedAt}
   hasAudio: false,
@@ -186,7 +190,7 @@ document.addEventListener('click', async (e) => {
   store.set('lyricsync.settings', state.settings);
   saveDraft();
   syncPickerValues();
-  if (row.dataset.pick === 'lang' || row.dataset.pick === 'defaultLang') { if (state.draft.lang === 'zh') loadPinyin(); }
+  if (row.dataset.pick === 'lang' || row.dataset.pick === 'defaultLang') { if (['zh', 'auto'].includes(state.draft.lang)) loadPinyin(); }
 });
 
 function syncPickerValues() {
@@ -327,13 +331,13 @@ async function convertScript(lines, script) {
 }
 
 /** 用当前草稿新建一个作品（音频一起存进本机） */
-async function createProject(lines, kind) {
+async function createProject(lines, kind, lang = state.draft.lang) {
   const d = state.draft;
   await d.decoding;
   const now = Date.now();
   const project = {
     id: newId(), kind, name: stripExt(d.name), hue: songHue(d.name), lyrics: kind === 'subtitle' ? '' : els.lyrics.value,
-    lines, lang: d.lang, model: d.model, duration: d.duration, peaks: d.peaks, createdAt: now, updatedAt: now,
+    lines, lang, model: d.model, duration: d.duration, peaks: d.peaks, createdAt: now, updatedAt: now,
   };
   try {
     await db.putAudio(project.id, d.file);
@@ -357,38 +361,45 @@ els.auto.addEventListener('click', async () => {
     d.duration = buffer.duration;
     d.peaks ??= computePeaks(buffer);
     const samples = await to16k(buffer);
-    const lang = LANGS.find((l) => l.value === d.lang);
-    const words = await transcribe(samples, { model: d.model, language: lang.whisper }, (p) => {
+    const lang = LANGS.find((l) => l.value === d.lang) ?? LANGS[0];
+    let heard = '';
+    const result = await transcribe(samples, { model: d.model, language: lang.whisper }, (p) => {
       if (p.stage === 'download') {
         const mb = p.total ? ` ${(p.loaded / 1e6).toFixed(0)}/${(p.total / 1e6).toFixed(0)}MB` : '';
         showProgress(`下载识别模型（仅首次）${mb}`, p.value);
+      } else if (p.stage === 'detect') {
+        showProgress('正在判断语言…', null);
       } else {
-        showProgress('正在听歌识词…', p.value);
+        showProgress(heard ? `听出是${heard}，正在识别…` : '正在听歌识词…', p.value);
       }
-    });
+    }, ({ code }) => { heard = LANG_NAMES[code] ?? code; });
+    const words = result.words;
+    // 实际使用的语言：手动选的，或者自动判断出来的（粤语在 Whisper 里通常被判断成中文）
+    const effLang = d.lang === 'auto' ? result.language : d.lang;
     const subtitle = d.mode === 'subtitle';
     const lyricLines = subtitle ? [] : cleanLyrics(els.lyrics.value);
     let lines;
     if (lyricLines.length) {
       showProgress('正在逐行对齐…', 1);
-      const phonetic = d.lang === 'zh' ? await loadPinyin() : null;
+      const phonetic = effLang === 'zh' ? await loadPinyin() : null;
       lines = alignLyrics(lyricLines, words, d.duration, { phonetic });
     } else {
-      const cjk = ['zh', 'yue', 'ja', 'ko'].includes(d.lang);
+      const cjk = ['zh', 'yue', 'ja', 'ko'].includes(effLang);
       const maxUnits = MAX_UNITS[cjk ? 'cjk' : 'latin'][subtitle ? d.lineLength : 'normal'];
       lines = segmentLines(words, 0.7, maxUnits);
-      if (d.lang === 'zh' || d.lang === 'yue') lines = await convertScript(lines, subtitle ? d.script : 'hans');
+      if (effLang === 'zh' || effLang === 'yue') lines = await convertScript(lines, subtitle ? d.script : 'hans');
     }
     if (!lines.length) {
       showProgress(subtitle ? '没有识别到人声。检查一下语言设置。' : '没有识别到人声。检查一下语言设置，或者用手动打点。', 0, true);
       return;
     }
     els.progress.hidden = true;
-    await createProject(lines, subtitle ? 'subtitle' : 'lyrics');
+    await createProject(lines, subtitle ? 'subtitle' : 'lyrics', effLang);
     switchTab('editor');
-    if (subtitle) { toast(`识别出 ${lines.length} 条字幕，点时间可以改字`); return; }
+    const prefix = d.lang === 'auto' && heard ? `识别为${heard}，` : '';
+    if (subtitle) { toast(`${prefix}共 ${lines.length} 条字幕，点时间可以改字`); return; }
     const low = lines.filter((l) => l.confidence != null && l.confidence < 0.5).length;
-    toast(low ? `完成，有 ${low} 句需要检查` : '完成，播放核对一下');
+    toast(prefix + (low ? `有 ${low} 句需要检查` : '播放核对一下'));
   } catch (e) {
     console.error(e);
     showProgress(`识别失败：${e.message}。可以换“快速”模型重试，或者用手动打点。`, 0, true);
@@ -988,6 +999,13 @@ els.clearModels.addEventListener('click', async () => {
 async function start() {
   Object.assign(state.settings, store.get('lyricsync.settings', {}));
   const draft = store.get('lyricsync.draft', {});
+  // 加入“自动识别”后，把之前默认的普通话改成自动识别（只做一次）
+  if (!state.settings.autoLangIntroduced) {
+    state.settings.autoLangIntroduced = true;
+    if (state.settings.defaultLang === 'zh') state.settings.defaultLang = 'auto';
+    if (draft.lang === 'zh') draft.lang = 'auto';
+    store.set('lyricsync.settings', state.settings);
+  }
   els.lyrics.value = draft.lyrics ?? '';
   state.draft.lang = draft.lang ?? state.settings.defaultLang;
   state.draft.model = draft.model ?? state.settings.defaultModel;
@@ -1013,7 +1031,7 @@ async function start() {
     } catch {}
   }
   switchTab('create');
-  if (state.draft.lang === 'zh') loadPinyin();
+  if (['zh', 'auto'].includes(state.draft.lang)) loadPinyin();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 

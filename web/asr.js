@@ -42,13 +42,18 @@ export async function to16k(buffer) {
   return rendered.getChannelData(0);
 }
 
-/** onProgress({stage: 'download'|'transcribe', value: 0..1, loaded?, total?}) */
-export function transcribe(samples, { model, language }, onProgress) {
+/**
+ * language 传 null 表示自动判断。
+ * onProgress({stage: 'download'|'detect'|'transcribe', value: 0..1, loaded?, total?})；判断出语言时 onLanguage({code, prob})。
+ * 返回 {words, language}
+ */
+export function transcribe(samples, { model, language }, onProgress, onLanguage) {
   worker ??= new Worker(new URL('./asr-worker.js', import.meta.url), { type: 'module' });
   return new Promise((resolve, reject) => {
     worker.onmessage = ({ data }) => {
       if (data.type === 'progress') onProgress?.(data);
-      else if (data.type === 'done') resolve(data.words);
+      else if (data.type === 'language') onLanguage?.(data);
+      else if (data.type === 'done') resolve({ words: data.words, language: data.language });
       else if (data.type === 'error') reject(new Error(data.message));
     };
     worker.onerror = (e) => {
