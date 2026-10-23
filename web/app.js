@@ -1,84 +1,135 @@
 import { alignLyrics, segmentLines, cleanLyrics, exportLyrics, lrcTime } from './align.js';
-import { decodeTo16k, transcribe } from './asr.js';
+import { decodeFile, computePeaks, to16k, transcribe } from './asr.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  audioInput: $('audio-input'), audioName: $('audio-name'), audioMeta: $('audio-meta'),
-  lyrics: $('lyrics'), lyricsFile: $('lyrics-file'), lang: $('lang'), model: $('model'),
+  setup: $('view-setup'), editor: $('view-editor'),
+  resume: $('resume'), resumeTitle: $('resume-title'),
+  audioInput: $('audio-input'), song: document.querySelector('.song'), songEmpty: $('song-empty'),
+  songInfo: $('song-info'), songName: $('song-name'), songMeta: $('song-meta'), songWave: $('song-wave'),
+  lyrics: $('lyrics'), lyricsFile: $('lyrics-file'), lyricsCount: $('lyrics-count'),
   auto: $('btn-auto'), manual: $('btn-manual'),
-  status: $('status'), statusFill: $('status-fill'), statusText: $('status-text'),
-  editor: $('editor'), editorHint: $('editor-hint'), lines: $('lines'),
-  exportText: $('export-text'), save: $('btn-save'), copy: $('btn-copy'),
-  player: $('player'), seek: $('seek'), clock: $('clock'), audio: $('audio'),
-  play: $('btn-play'), back: $('btn-back'), fwd: $('btn-fwd'), undo: $('btn-undo'), tap: $('btn-tap'),
-  toast: $('toast'),
+  progress: $('progress'), progressText: $('progress-text'), progressPct: $('progress-pct'), progressFill: $('progress-fill'),
+  back: $('btn-back'), exportBtn: $('btn-export'), editorTitle: $('editor-title'), editorSub: $('editor-sub'),
+  needAudio: $('need-audio'), needAudioName: $('need-audio-name'),
+  lines: $('lines'), wave: $('wave'), clock: $('clock'),
+  rew: $('btn-rew'), play: $('btn-play'), fwd: $('btn-fwd'), undo: $('btn-undo'), tap: $('btn-tap'), tapHint: $('tap-hint'),
+  sheetLine: $('sheet-line'), slText: $('sl-text'), slTime: $('sl-time'), slNow: $('sl-now'), slNowTime: $('sl-now-time'), slPlay: $('sl-play'),
+  sheetExport: $('sheet-export'), exDesc: $('ex-desc'), exportText: $('export-text'), save: $('btn-save'), copy: $('btn-copy'),
+  audio: $('audio'), toast: $('toast'),
 };
 
 const WHISPER_LANG = { zh: 'chinese', yue: 'chinese', en: 'english', ja: 'japanese', ko: 'korean' };
-const STORE_KEY = 'lyricsync.v1';
+const FORMAT_DESC = {
+  lrc: '最常用的歌词格式，音乐播放器都支持。',
+  klrc: '带每个字的时间，可用于卡拉 OK 逐字变色。',
+  srt: '视频字幕格式，剪映、Premiere 等都能导入。',
+};
+const STORE_KEY = 'lyricsync.v2';
 
 const state = {
   file: null,
+  audioName: '',
+  peaks: null,
   duration: 0,
-  lines: [],        // [{text, start, end, words:[{text,start,end,matched}], confidence}]，start 为 null 表示还没打点
+  lines: [],       // [{text, start, end, words:[{text,start,end,matched}], confidence}]，start 为 null 表示还没打点
   undo: [],
   current: -1,
-  selected: -1,     // 展开了微调按钮的行
+  sheetIndex: -1,
   format: 'lrc',
   busy: false,
+  options: { lang: 'zh', model: 'onnx-community/whisper-base_timestamped' },
 };
 
-// ---------- 本地保存（只存在这台设备的浏览器里） ----------
+// ---------- 本地保存（只在这台设备的浏览器里） ----------
 
 function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      lyrics: els.lyrics.value, lines: state.lines, lang: els.lang.value, model: els.model.value,
-      audioName: state.file?.name ?? restoredAudioName,
+      lyrics: els.lyrics.value, lines: state.lines, options: state.options, audioName: state.audioName,
     }));
   } catch {}
 }
 
-let restoredAudioName = '';
 function restore() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (!s) return;
     els.lyrics.value = s.lyrics ?? '';
-    if (s.lang) els.lang.value = s.lang;
-    if (s.model) els.model.value = s.model;
+    Object.assign(state.options, s.options);
     state.lines = Array.isArray(s.lines) ? s.lines : [];
-    restoredAudioName = s.audioName ?? '';
+    state.audioName = s.audioName ?? '';
   } catch {}
 }
 
-// ---------- 导入 ----------
+// ---------- 页面切换 ----------
 
-els.audioInput.addEventListener('change', () => {
+function showView(name) {
+  els.setup.hidden = name !== 'setup';
+  els.editor.hidden = name !== 'editor';
+  if (name === 'editor') {
+    renderLines();
+    requestAnimationFrame(() => { sizeCanvas(els.wave); drawWave(); });
+  } else {
+    els.audio.pause();
+    updateSetup();
+  }
+  window.scrollTo(0, 0);
+}
+
+els.back.addEventListener('click', () => showView('setup'));
+els.resume.addEventListener('click', () => showView('editor'));
+
+// ---------- 新建页 ----------
+
+function songHue(name) {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return h;
+}
+
+function setHue(name) {
+  document.documentElement.style.setProperty('--h', name ? String(songHue(name)) : '14');
+}
+
+const displayName = () => state.audioName.replace(/\.[^.]+$/, '') || '未命名歌曲';
+
+els.audioInput.addEventListener('change', async () => {
   const file = els.audioInput.files[0];
+  els.audioInput.value = '';
   if (!file) return;
   state.file = file;
+  state.audioName = file.name;
+  state.peaks = null;
+  state.duration = 0;
   if (els.audio.src) URL.revokeObjectURL(els.audio.src);
   els.audio.src = URL.createObjectURL(file);
-  els.audioName.textContent = file.name.replace(/\.[^.]+$/, '');
-  els.audioMeta.textContent = '';
-  els.audioInput.closest('.field').querySelector('.file-btn').classList.add('has-file');
-  updateButtons();
+  setHue(file.name);
+  updateSetup();
   save();
+  try {
+    const buffer = await decodeFile(file);
+    if (state.file !== file) return;
+    state.duration = buffer.duration;
+    state.peaks = computePeaks(buffer);
+    updateSetup();
+    if (!els.editor.hidden) drawWave();
+  } catch {
+    toast('这个文件读不出声音，换一个试试');
+  }
 });
 
 els.audio.addEventListener('loadedmetadata', () => {
-  state.duration = els.audio.duration || 0;
-  els.audioMeta.textContent = lrcTime(state.duration).slice(0, 5);
-  els.seek.max = String(state.duration || 1);
+  if (!state.duration) state.duration = els.audio.duration || 0;
+  updateSetup();
 });
 
 els.lyricsFile.addEventListener('change', async () => {
   const file = els.lyricsFile.files[0];
+  els.lyricsFile.value = '';
   if (!file) return;
   els.lyrics.value = await readText(file);
-  els.lyricsFile.value = '';
-  updateButtons();
+  updateSetup();
   save();
 });
 
@@ -87,28 +138,59 @@ async function readText(file) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(buf);
   } catch {
-    return new TextDecoder('gb18030').decode(buf); // 老的中文 .lrc 常用 GBK 编码
+    return new TextDecoder('gb18030').decode(buf); // 老的中文 .lrc 常是 GBK 编码
   }
 }
 
-els.lyrics.addEventListener('input', () => { updateButtons(); save(); });
-els.lang.addEventListener('change', save);
-els.model.addEventListener('change', save);
+els.lyrics.addEventListener('input', () => { updateSetup(); save(); });
 
-function updateButtons() {
-  const hasLyrics = cleanLyrics(els.lyrics.value).length > 0;
-  els.auto.textContent = hasLyrics ? '自动对齐' : '自动识别歌词';
+for (const group of document.querySelectorAll('.chips[data-name]')) {
+  group.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-value]');
+    if (!btn) return;
+    state.options[group.dataset.name] = btn.dataset.value;
+    syncChips();
+    save();
+  });
+}
+
+function syncChips() {
+  for (const group of document.querySelectorAll('.chips[data-name]')) {
+    for (const b of group.querySelectorAll('button')) {
+      b.setAttribute('aria-checked', String(b.dataset.value === state.options[group.dataset.name]));
+    }
+  }
+}
+
+function updateSetup() {
+  const lyricLines = cleanLyrics(els.lyrics.value);
+  els.lyricsCount.textContent = lyricLines.length ? `${lyricLines.length} 行` : '';
+  els.auto.textContent = lyricLines.length ? '自动对齐' : '自动识别歌词';
   els.auto.disabled = !state.file || state.busy;
-  els.manual.disabled = !state.file || !hasLyrics || state.busy;
+  els.manual.disabled = !state.file || !lyricLines.length || state.busy;
+
+  const has = !!state.file;
+  els.song.classList.toggle('has-file', has);
+  els.songEmpty.hidden = has;
+  els.songInfo.hidden = !has;
+  if (has) {
+    els.songName.textContent = displayName();
+    els.songMeta.textContent = state.duration ? lrcTime(state.duration).slice(0, 5) : '';
+    requestAnimationFrame(() => { sizeCanvas(els.songWave); drawPeaks(els.songWave, { progress: 1 }); });
+  }
+
+  els.resume.hidden = !state.lines.length;
+  els.resumeTitle.textContent = `${displayName()} · ${state.lines.length} 行`;
 }
 
 // ---------- 识别与对齐 ----------
 
-function showStatus(text, value = null, error = false) {
-  els.status.hidden = false;
-  els.status.classList.toggle('error', error);
-  els.statusText.textContent = text;
-  els.statusFill.style.width = value == null ? '0' : `${Math.round(value * 100)}%`;
+function showProgress(text, value = null, error = false) {
+  els.progress.hidden = false;
+  els.progress.classList.toggle('error', error);
+  els.progressText.textContent = text;
+  els.progressPct.textContent = value == null || error ? '' : `${Math.round(value * 100)}%`;
+  els.progressFill.style.width = value == null ? '0' : `${Math.round(value * 100)}%`;
 }
 
 let pinyinFn = null;
@@ -130,43 +212,47 @@ async function loadPinyin() {
 els.auto.addEventListener('click', async () => {
   if (!state.file || state.busy) return;
   state.busy = true;
-  updateButtons();
+  updateSetup();
   let wakeLock = null;
   try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
   try {
-    showStatus('正在读取音频…');
-    const { samples, duration } = await decodeTo16k(state.file);
-    state.duration = duration;
-    const words = await transcribe(samples, { model: els.model.value, language: WHISPER_LANG[els.lang.value] }, (p) => {
+    showProgress('正在读取音频…', 0);
+    const buffer = await decodeFile(state.file);
+    state.duration = buffer.duration;
+    state.peaks ??= computePeaks(buffer);
+    const samples = await to16k(buffer);
+    const { lang, model } = state.options;
+    const words = await transcribe(samples, { model, language: WHISPER_LANG[lang] }, (p) => {
       if (p.stage === 'download') {
-        const mb = p.total ? `（${(p.loaded / 1e6).toFixed(0)} / ${(p.total / 1e6).toFixed(0)} MB）` : '';
-        showStatus(`正在下载识别模型，只需一次${mb}`, p.value);
+        const mb = p.total ? ` ${(p.loaded / 1e6).toFixed(0)}/${(p.total / 1e6).toFixed(0)}MB` : '';
+        showProgress(`下载识别模型（仅首次）${mb}`, p.value);
       } else {
-        showStatus(`正在识别歌词… ${Math.round(p.value * 100)}%`, p.value);
+        showProgress('正在听歌识词…', p.value);
       }
     });
     const lyricLines = cleanLyrics(els.lyrics.value);
     if (lyricLines.length) {
-      showStatus('正在逐行对齐…', 1);
-      const phonetic = els.lang.value === 'zh' ? await loadPinyin() : null;
-      setLines(alignLyrics(lyricLines, words, duration, { phonetic }));
+      showProgress('正在逐行对齐…', 1);
+      const phonetic = lang === 'zh' ? await loadPinyin() : null;
+      setLines(alignLyrics(lyricLines, words, state.duration, { phonetic }));
     } else {
       setLines(segmentLines(words));
     }
     if (!state.lines.length) {
-      showStatus('没有识别到人声。请确认语言设置，或改用“手动打点”。', 0, true);
+      showProgress('没有识别到人声。检查一下演唱语言，或者用手动打点。', 0, true);
     } else {
+      els.progress.hidden = true;
       const low = state.lines.filter((l) => l.confidence != null && l.confidence < 0.5).length;
-      showStatus(low ? `完成。有 ${low} 行匹配度低（标了“需检查”），建议播放核对。` : '完成。播放核对一下，有偏差可以微调。', 1);
-      els.editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showView('editor');
+      toast(low ? `完成，有 ${low} 行需要检查` : '完成，播放核对一下');
     }
   } catch (e) {
     console.error(e);
-    showStatus(`识别失败：${e.message}。可以换“快速”模型重试，或改用“手动打点”。`, 0, true);
+    showProgress(`识别失败：${e.message}。可以换“快速”模型重试，或者用手动打点。`, 0, true);
   } finally {
     wakeLock?.release?.().catch(() => {});
     state.busy = false;
-    updateButtons();
+    updateSetup();
   }
 });
 
@@ -174,33 +260,25 @@ els.manual.addEventListener('click', () => {
   const lyricLines = cleanLyrics(els.lyrics.value);
   if (!lyricLines.length) return;
   setLines(lyricLines.map((text) => ({ text, start: null, end: null, words: [], confidence: null })));
-  els.status.hidden = true;
-  toast('播放歌曲，每句开始唱时点“打点”');
-  els.editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  els.progress.hidden = true;
+  showView('editor');
+  toast('播放歌曲，每句开口时点“打点”');
 });
 
 function setLines(lines) {
   state.lines = lines;
   state.undo = [];
-  state.selected = -1;
   state.current = -1;
-  renderLines();
   save();
 }
 
-// ---------- 时间轴列表 ----------
+// ---------- 歌词列表 ----------
 
 function renderLines() {
-  const has = state.lines.length > 0;
-  els.editor.hidden = !has;
-  els.player.hidden = !has;
+  els.editorTitle.textContent = displayName();
   els.undo.disabled = state.undo.length === 0;
-  if (!has) return;
-
-  const unset = state.lines.filter((l) => l.start == null).length;
-  els.editorHint.textContent = !state.file
-    ? `已恢复上次的时间轴。请重新选择音频“${baseName()}”才能播放。`
-    : unset ? `还有 ${unset} 行没打点` : '点歌词跳到该句，点时间可微调';
+  els.needAudio.hidden = !!state.file;
+  els.needAudioName.textContent = displayName();
 
   els.lines.replaceChildren(...state.lines.map((line, i) => {
     const li = document.createElement('li');
@@ -209,11 +287,18 @@ function renderLines() {
     const ts = document.createElement('button');
     ts.type = 'button';
     ts.className = 'ts' + (line.start == null ? ' unset' : '');
-    ts.textContent = line.start == null ? '--:--.--' : lrcTime(line.start);
-    ts.setAttribute('aria-label', `调整第 ${i + 1} 行时间`);
-    ts.dataset.act = 'select';
-    const text = document.createElement('div');
-    text.className = 'text';
+    ts.dataset.act = 'adjust';
+    ts.append(line.start == null ? '--:--.--' : lrcTime(line.start));
+    if (line.confidence != null && line.confidence < 0.5) {
+      const flag = document.createElement('span');
+      flag.className = 'flag';
+      flag.textContent = '需检查';
+      ts.append(flag);
+    }
+    ts.setAttribute('aria-label', `调整第 ${i + 1} 句的时间`);
+    const text = document.createElement('button');
+    text.type = 'button';
+    text.className = 'text' + (line.words.length ? '' : ' plain');
     text.dataset.act = 'seek';
     if (line.words.length) {
       for (const w of line.words) {
@@ -225,50 +310,43 @@ function renderLines() {
     } else {
       text.textContent = line.text;
     }
-    if (line.confidence != null && line.confidence < 0.5) {
-      const low = document.createElement('span');
-      low.className = 'low';
-      low.textContent = '需检查';
-      text.append(low);
-    }
     li.append(ts, text);
-    if (i === state.selected) {
-      const tools = document.createElement('div');
-      tools.className = 'tools';
-      tools.innerHTML = '<button type="button" data-act="minus">−0.1 秒</button>' +
-        '<button type="button" data-act="plus">+0.1 秒</button>' +
-        '<button type="button" class="set" data-act="now">设为当前播放位置</button>';
-      li.append(tools);
-    }
     return li;
   }));
   state.current = -1;
-  updateExport();
+  updateEditorMeta();
   tick(true);
 }
+
+function updateEditorMeta() {
+  const unset = state.lines.filter((l) => l.start == null).length;
+  const low = state.lines.filter((l) => l.confidence != null && l.confidence < 0.5).length;
+  els.editorSub.textContent = unset ? `还有 ${unset} 句没打点` : low ? `${state.lines.length} 句 · ${low} 句需检查` : `${state.lines.length} 句`;
+  els.undo.disabled = state.undo.length === 0;
+}
+
+els.needAudio.addEventListener('click', () => els.audioInput.click());
+els.audioInput.addEventListener('change', () => {
+  if (!els.editor.hidden) setTimeout(() => { renderLines(); sizeCanvas(els.wave); drawWave(); }, 0);
+});
 
 els.lines.addEventListener('click', (e) => {
   const target = e.target.closest('[data-act]');
   const li = e.target.closest('.line');
   if (!target || !li) return;
   const i = Number(li.dataset.i);
-  const line = state.lines[i];
-  switch (target.dataset.act) {
-    case 'select':
-      state.selected = state.selected === i ? -1 : i;
-      renderLines();
-      break;
-    case 'seek':
-      if (line.start != null && els.audio.src) {
-        els.audio.currentTime = line.start;
-        els.audio.play().catch(() => {});
-      }
-      break;
-    case 'minus': edit(() => setStart(i, (line.start ?? 0) - 0.1)); break;
-    case 'plus': edit(() => setStart(i, (line.start ?? 0) + 0.1)); break;
-    case 'now': edit(() => setStart(i, els.audio.currentTime)); break;
-  }
+  if (target.dataset.act === 'adjust') openLineSheet(i);
+  else playFrom(i);
 });
+
+function playFrom(i) {
+  const line = state.lines[i];
+  if (!state.file) return toast('先重新选择音频');
+  if (line.start == null) return openLineSheet(i);
+  els.audio.currentTime = Math.max(0, line.start - 0.05);
+  els.audio.play().catch(() => {});
+  tick(true);
+}
 
 /** 改一行的开始时间：有逐字时间的整行平移；同时把上一行的结束时间接上 */
 function setStart(i, time) {
@@ -290,89 +368,221 @@ function edit(fn) {
   state.undo.push(JSON.stringify(state.lines));
   if (state.undo.length > 100) state.undo.shift();
   fn();
-  renderLines();
+  refreshRows();
   save();
+}
+
+/** 只更新时间标签，不重建整个列表（保持滚动位置） */
+function refreshRows() {
+  state.lines.forEach((line, i) => {
+    const ts = els.lines.children[i]?.querySelector('.ts');
+    if (!ts) return;
+    ts.firstChild.textContent = line.start == null ? '--:--.--' : lrcTime(line.start);
+    ts.classList.toggle('unset', line.start == null);
+  });
+  updateEditorMeta();
+  if (els.sheetLine.open) fillLineSheet();
+  state.current = -1;
+  tick(true);
 }
 
 els.undo.addEventListener('click', () => {
   const prev = state.undo.pop();
   if (!prev) return;
   state.lines = JSON.parse(prev);
-  renderLines();
+  refreshRows();
   save();
 });
 
-// 打点：没打完时按顺序给下一句设开始时间；全部打完后，给当前句的下一句设时间
+// 打点：没打完时按顺序给下一句设开始时间；都打过了，就给当前句的下一句设时间
+function tapTarget() {
+  const i = state.lines.findIndex((l) => l.start == null);
+  return i >= 0 ? i : state.current + 1;
+}
+
 els.tap.addEventListener('click', () => {
-  if (!els.audio.src) return toast('先选择音频');
-  let i = state.lines.findIndex((l) => l.start == null);
-  if (i < 0) i = state.current + 1;
+  if (!state.file) return toast('先重新选择音频');
+  const i = tapTarget();
   if (i >= state.lines.length) return toast('已经是最后一句');
   edit(() => setStart(i, els.audio.currentTime));
+  if (els.audio.paused) toast(`第 ${i + 1} 句设为 ${lrcTime(els.audio.currentTime)}`);
 });
+
+// ---------- 单句微调弹层 ----------
+
+function openLineSheet(i) {
+  state.sheetIndex = i;
+  fillLineSheet();
+  els.sheetLine.showModal();
+}
+
+function fillLineSheet() {
+  const line = state.lines[state.sheetIndex];
+  if (!line) return;
+  els.slText.textContent = line.text;
+  els.slTime.textContent = line.start == null ? '--:--.--' : lrcTime(line.start);
+  els.slNowTime.textContent = lrcTime(els.audio.currentTime || 0);
+  els.slPlay.disabled = line.start == null || !state.file;
+}
+
+els.sheetLine.addEventListener('click', (e) => {
+  const nudge = e.target.closest('[data-nudge]');
+  if (nudge) {
+    const line = state.lines[state.sheetIndex];
+    edit(() => setStart(state.sheetIndex, (line.start ?? els.audio.currentTime ?? 0) + Number(nudge.dataset.nudge)));
+  }
+});
+els.slNow.addEventListener('click', () => edit(() => setStart(state.sheetIndex, els.audio.currentTime || 0)));
+els.slPlay.addEventListener('click', () => { els.sheetLine.close(); playFrom(state.sheetIndex); });
+
+for (const dlg of [els.sheetLine, els.sheetExport]) {
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); // 点遮罩或“完成”关闭
+  });
+}
 
 // ---------- 播放 ----------
 
 els.play.addEventListener('click', () => {
-  if (!els.audio.src) return toast('先选择音频');
+  if (!state.file) return toast('先重新选择音频');
   if (els.audio.paused) els.audio.play().catch(() => {}); else els.audio.pause();
 });
-els.back.addEventListener('click', () => { els.audio.currentTime = Math.max(0, els.audio.currentTime - 5); tick(true); });
-els.fwd.addEventListener('click', () => { els.audio.currentTime = Math.min(state.duration, els.audio.currentTime + 5); tick(true); });
-els.seek.addEventListener('input', () => { els.audio.currentTime = Number(els.seek.value); tick(true); });
-els.audio.addEventListener('play', () => { els.play.textContent = '❚❚'; els.play.setAttribute('aria-label', '暂停'); loop(); });
-els.audio.addEventListener('pause', () => { els.play.textContent = '▶'; els.play.setAttribute('aria-label', '播放'); });
+els.rew.addEventListener('click', () => seekTo(els.audio.currentTime - 5));
+els.fwd.addEventListener('click', () => seekTo(els.audio.currentTime + 5));
+els.audio.addEventListener('play', () => { els.play.classList.add('playing'); els.play.setAttribute('aria-label', '暂停'); loop(); });
+els.audio.addEventListener('pause', () => { els.play.classList.remove('playing'); els.play.setAttribute('aria-label', '播放'); tick(true); });
+
+function seekTo(t) {
+  if (!state.file) return;
+  els.audio.currentTime = Math.max(0, Math.min(state.duration || els.audio.duration || 0, t));
+  tick(true);
+}
 
 function loop() {
   tick();
   if (!els.audio.paused) requestAnimationFrame(loop);
 }
 
+let lastUserScroll = 0;
+for (const ev of ['touchstart', 'wheel']) els.lines.addEventListener(ev, () => { lastUserScroll = Date.now(); }, { passive: true });
+
 function tick(force = false) {
+  if (els.editor.hidden) return;
   const t = els.audio.currentTime || 0;
   els.clock.textContent = lrcTime(t);
-  if (document.activeElement !== els.seek) els.seek.value = String(t);
   let cur = -1;
   state.lines.forEach((l, i) => { if (l.start != null && l.start <= t + 0.01) cur = i; });
   const rows = els.lines.children;
   if (cur !== state.current || force) {
-    rows[state.current]?.classList.remove('current');
-    rows[cur]?.classList.add('current');
-    if (cur >= 0 && cur !== state.current && !els.audio.paused) {
+    for (let i = 0; i < rows.length; i++) {
+      rows[i].classList.toggle('current', i === cur);
+      rows[i].classList.toggle('past', cur >= 0 && i < cur);
+    }
+    if (cur >= 0 && cur !== state.current && !els.audio.paused && Date.now() - lastUserScroll > 2500) {
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
       rows[cur]?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
     }
     state.current = cur;
+    const next = tapTarget();
+    els.tapHint.textContent = state.lines[next] ? `下一句：${state.lines[next].text}` : '';
   }
-  // 当前行逐字变色（卡拉 OK 效果）
   const line = state.lines[cur];
   if (line?.words.length) {
     const spans = rows[cur].querySelectorAll('.w');
     line.words.forEach((w, k) => spans[k]?.classList.toggle('sung', w.start <= t));
   }
+  if (els.sheetLine.open) els.slNowTime.textContent = lrcTime(t);
+  drawWave();
 }
+
+// ---------- 波形 ----------
+
+function sizeCanvas(canvas) {
+  const r = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(r.width * dpr));
+  canvas.height = Math.max(1, Math.round(r.height * dpr));
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** 画波形；progress 之前的部分用主色，markers 是每句开始时间的小刻度 */
+function drawPeaks(canvas, { progress = 0, markers = [], currentMarker = -1 } = {}) {
+  const ctx = canvas.getContext('2d');
+  const { width: W, height: H } = canvas;
+  ctx.clearRect(0, 0, W, H);
+  const dpr = window.devicePixelRatio || 1;
+  const bar = 3 * dpr, gap = 2 * dpr;
+  const n = Math.max(1, Math.floor((W + gap) / (bar + gap)));
+  const top = markers.length ? 10 * dpr : 0;
+  const mid = top + (H - top) / 2;
+  const accent = cssVar('--accent');
+  for (let i = 0; i < n; i++) {
+    let v = 0.08;
+    if (state.peaks) {
+      const a = Math.floor((i / n) * state.peaks.length), b = Math.max(a + 1, Math.floor(((i + 1) / n) * state.peaks.length));
+      for (let k = a; k < b; k++) v = Math.max(v, state.peaks[k]);
+    }
+    const h = Math.max(2 * dpr, v * (H - top) * 0.92);
+    ctx.fillStyle = (i + 0.5) / n <= progress ? accent : 'rgba(255,255,255,0.22)';
+    const x = i * (bar + gap);
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, mid - h / 2, bar, h, bar / 2) : ctx.rect(x, mid - h / 2, bar, h);
+    ctx.fill();
+  }
+  markers.forEach((m, i) => {
+    ctx.fillStyle = i === currentMarker ? accent : 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.arc(m * W, 4 * dpr, (i === currentMarker ? 3 : 2) * dpr, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawWave() {
+  const d = state.duration || els.audio.duration || 0;
+  const markers = d ? state.lines.filter((l) => l.start != null).map((l) => l.start / d) : [];
+  const currentMarker = state.current >= 0 ? state.lines.slice(0, state.current + 1).filter((l) => l.start != null).length - 1 : -1;
+  drawPeaks(els.wave, { progress: d ? (els.audio.currentTime || 0) / d : 0, markers, currentMarker });
+}
+
+function seekFromPointer(e) {
+  const r = els.wave.getBoundingClientRect();
+  const d = state.duration || els.audio.duration || 0;
+  seekTo(((e.clientX - r.left) / r.width) * d);
+}
+els.wave.addEventListener('pointerdown', (e) => { els.wave.setPointerCapture(e.pointerId); seekFromPointer(e); });
+els.wave.addEventListener('pointermove', (e) => { if (els.wave.hasPointerCapture(e.pointerId)) seekFromPointer(e); });
+els.wave.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') seekTo(els.audio.currentTime - 1);
+  if (e.key === 'ArrowRight') seekTo(els.audio.currentTime + 1);
+});
+window.addEventListener('resize', () => {
+  if (!els.editor.hidden) { sizeCanvas(els.wave); drawWave(); }
+  else if (state.file) { sizeCanvas(els.songWave); drawPeaks(els.songWave, { progress: 1 }); }
+});
 
 // ---------- 导出 ----------
 
-els.editor.querySelector('.seg').addEventListener('click', (e) => {
+els.exportBtn.addEventListener('click', () => { updateExport(); els.sheetExport.showModal(); });
+
+els.sheetExport.querySelector('.seg').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-format]');
   if (!btn) return;
   state.format = btn.dataset.format;
-  for (const b of els.editor.querySelectorAll('.seg button')) b.setAttribute('aria-checked', String(b === btn));
+  for (const b of els.sheetExport.querySelectorAll('.seg button')) b.setAttribute('aria-checked', String(b === btn));
   updateExport();
 });
 
-function baseName() {
-  return (state.file?.name || restoredAudioName || '歌词').replace(/\.[^.]+$/, '') || '歌词';
-}
-
 function updateExport() {
-  els.exportText.value = exportLyrics(state.lines, state.format, baseName());
+  els.exDesc.textContent = FORMAT_DESC[state.format];
+  els.exportText.value = exportLyrics(state.lines, state.format, displayName());
 }
 
 els.save.addEventListener('click', async () => {
   const text = els.exportText.value;
-  const name = `${baseName()}.${state.format === 'srt' ? 'srt' : 'lrc'}`;
+  const name = `${displayName()}.${state.format === 'srt' ? 'srt' : 'lrc'}`;
   const file = new File([text], name, { type: 'text/plain' });
   if (navigator.canShare?.({ files: [file] })) {
     try {
@@ -404,12 +614,16 @@ function toast(msg) {
   els.toast.textContent = msg;
   els.toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 2200);
+  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 2400);
 }
 
 // ---------- 启动 ----------
 
 restore();
-updateButtons();
-renderLines();
-if (els.lang.value === 'zh') loadPinyin(); // 提前加载拼音库，体积很小
+setHue(state.audioName);
+syncChips();
+updateSetup();
+if (state.options.lang === 'zh') loadPinyin();
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}

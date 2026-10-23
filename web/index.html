@@ -3,112 +3,170 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E0D14">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="歌词对齐">
-  <meta name="theme-color" content="#F4F5F8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
   <title>歌词对齐</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&text=%E6%AD%8C%E8%AF%8D%E5%AF%B9%E9%BD%90&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="wrap">
-    <header class="top">
-      <h1>歌词对齐</h1>
-      <p class="sub">导入歌曲和歌词，逐行生成时间轴，导出 LRC / SRT。识别在你的手机上完成，音频不会上传。</p>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <!-- ① 新建 -->
+  <main id="view-setup" class="view setup">
+    <header class="hero">
+      <h1 class="brand">歌词对齐</h1>
+      <p class="tagline">给歌曲配上逐行时间轴，导出 LRC 和 SRT。<br>识别在手机上完成，音频不会上传。</p>
     </header>
 
-    <section class="panel" aria-labelledby="setup-title">
-      <h2 id="setup-title" class="visually-hidden">设置</h2>
+    <button id="resume" class="resume" type="button" hidden>
+      <span class="resume-kicker">继续上次</span>
+      <span id="resume-title" class="resume-title"></span>
+      <span class="resume-go" aria-hidden="true">›</span>
+    </button>
 
-      <div class="field">
-        <span class="label">音频</span>
-        <label class="file-btn" for="audio-input">
-          <span id="audio-name">选择音乐或录音</span>
-          <span id="audio-meta" class="meta"></span>
-        </label>
-        <input id="audio-input" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.flac" hidden>
+    <section class="step" aria-labelledby="step-audio">
+      <h2 id="step-audio" class="step-title"><span class="step-no">1</span>歌曲</h2>
+      <label class="song" for="audio-input">
+        <span class="song-empty" id="song-empty">
+          <span class="plus" aria-hidden="true">＋</span>
+          <span>选择音乐或录音<small>mp3、m4a、wav 都可以</small></span>
+        </span>
+        <span class="song-info" id="song-info" hidden>
+          <span class="song-name" id="song-name"></span>
+          <span class="song-meta" id="song-meta"></span>
+          <canvas id="song-wave" class="song-wave" aria-hidden="true"></canvas>
+        </span>
+      </label>
+      <input id="audio-input" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.flac" hidden>
+    </section>
+
+    <section class="step" aria-labelledby="step-lyrics">
+      <div class="step-head">
+        <h2 id="step-lyrics" class="step-title"><span class="step-no">2</span>歌词</h2>
+        <span id="lyrics-count" class="count"></span>
       </div>
+      <textarea id="lyrics" rows="9" spellcheck="false" aria-labelledby="step-lyrics"
+        placeholder="每行一句，例如：&#10;窗外的麻雀&#10;在电线杆上多嘴&#10;你说这一句&#10;很有夏天的感觉&#10;&#10;不填的话，会自动识别歌词并分行"></textarea>
+      <label class="text-btn" for="lyrics-file">从文件导入 .txt / .lrc</label>
+      <input id="lyrics-file" type="file" accept=".txt,.lrc,text/plain" hidden>
+    </section>
 
-      <div class="field">
-        <div class="label-row">
-          <label class="label" for="lyrics">歌词</label>
-          <label class="link-btn" for="lyrics-file">导入 .txt / .lrc</label>
-          <input id="lyrics-file" type="file" accept=".txt,.lrc,text/plain" hidden>
+    <section class="step" aria-labelledby="step-options">
+      <h2 id="step-options" class="step-title"><span class="step-no">3</span>识别设置</h2>
+      <div class="opt">
+        <span class="opt-label" id="lang-label">演唱语言</span>
+        <div class="chips" role="radiogroup" aria-labelledby="lang-label" data-name="lang">
+          <button type="button" role="radio" data-value="zh">普通话</button>
+          <button type="button" role="radio" data-value="yue">粤语</button>
+          <button type="button" role="radio" data-value="en">English</button>
+          <button type="button" role="radio" data-value="ja">日本語</button>
+          <button type="button" role="radio" data-value="ko">한국어</button>
         </div>
-        <textarea id="lyrics" rows="8" spellcheck="false"
-          placeholder="每行一句，例如：&#10;窗外的麻雀&#10;在电线杆上多嘴&#10;你说这一句&#10;很有夏天的感觉&#10;&#10;留空则自动识别歌词并分行"></textarea>
       </div>
-
-      <div class="row">
-        <div class="field">
-          <label class="label" for="lang">语言</label>
-          <select id="lang">
-            <option value="zh">普通话</option>
-            <option value="yue">粤语</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
+      <div class="opt">
+        <span class="opt-label" id="model-label">识别模型</span>
+        <div class="chips models" role="radiogroup" aria-labelledby="model-label" data-name="model">
+          <button type="button" role="radio" data-value="onnx-community/whisper-tiny_timestamped">快速<small>约 40MB</small></button>
+          <button type="button" role="radio" data-value="onnx-community/whisper-base_timestamped">标准<small>约 80MB</small></button>
+          <button type="button" role="radio" data-value="onnx-community/whisper-small_timestamped">精准<small>约 250MB</small></button>
         </div>
-        <div class="field">
-          <label class="label" for="model">识别模型</label>
-          <select id="model">
-            <option value="onnx-community/whisper-tiny_timestamped">快速（约 40MB）</option>
-            <option value="onnx-community/whisper-base_timestamped" selected>标准（约 80MB）</option>
-            <option value="onnx-community/whisper-small_timestamped">精准（约 250MB，较慢）</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button id="btn-auto" class="primary" type="button" disabled>自动对齐</button>
-        <button id="btn-manual" class="secondary" type="button" disabled>手动打点</button>
-      </div>
-      <p class="hint">模型只在第一次使用时下载，之后会缓存在手机里。识别时请保持页面在前台。</p>
-
-      <div id="status" class="status" hidden>
-        <div class="bar"><div id="status-fill" class="fill"></div></div>
-        <p id="status-text"></p>
       </div>
     </section>
 
-    <section id="editor" class="editor" hidden aria-labelledby="editor-title">
-      <div class="editor-head">
-        <h2 id="editor-title">时间轴</h2>
-        <p id="editor-hint" class="meta"></p>
+    <section class="go" aria-live="polite">
+      <button id="btn-auto" class="cta" type="button" disabled>自动对齐</button>
+      <button id="btn-manual" class="ghost" type="button" disabled>不识别，边听边手动打点</button>
+      <div id="progress" class="progress" hidden>
+        <div class="progress-row"><span id="progress-text"></span><span id="progress-pct" class="mono"></span></div>
+        <div class="track"><div id="progress-fill" class="fill"></div></div>
       </div>
-      <ol id="lines" class="lines"></ol>
-
-      <div class="export">
-        <h3>导出</h3>
-        <div class="seg" role="radiogroup" aria-label="格式">
-          <button type="button" role="radio" data-format="lrc" aria-checked="true">LRC 逐行</button>
-          <button type="button" role="radio" data-format="klrc" aria-checked="false">LRC 逐字</button>
-          <button type="button" role="radio" data-format="srt" aria-checked="false">SRT 字幕</button>
-        </div>
-        <textarea id="export-text" rows="6" readonly aria-label="导出内容"></textarea>
-        <div class="actions">
-          <button id="btn-save" class="primary" type="button">存储 / 分享文件</button>
-          <button id="btn-copy" class="secondary" type="button">复制</button>
-        </div>
-      </div>
+      <p class="fine">模型第一次使用时下载，之后缓存在手机里。识别时请停留在这个页面，不要锁屏。</p>
     </section>
   </main>
 
-  <div id="player" class="player" hidden>
-    <input id="seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="播放进度">
-    <div class="player-row">
-      <span id="clock" class="clock">00:00.00</span>
-      <button id="btn-back" class="icon" type="button" aria-label="后退 5 秒">−5s</button>
-      <button id="btn-play" class="play" type="button" aria-label="播放">▶</button>
-      <button id="btn-fwd" class="icon" type="button" aria-label="前进 5 秒">+5s</button>
-      <button id="btn-undo" class="icon" type="button" aria-label="撤销" disabled>撤销</button>
-      <button id="btn-tap" class="tap" type="button">打点</button>
+  <!-- ② 时间轴 -->
+  <section id="view-editor" class="view editor" hidden aria-label="时间轴">
+    <header class="bar">
+      <button id="btn-back" class="bar-btn" type="button" aria-label="返回">‹ 新建</button>
+      <div class="bar-title">
+        <span id="editor-title"></span>
+        <small id="editor-sub"></small>
+      </div>
+      <button id="btn-export" class="bar-btn strong" type="button">导出</button>
+    </header>
+
+    <button id="need-audio" class="need-audio" type="button" hidden>重新选择音频“<span id="need-audio-name"></span>”后才能播放</button>
+
+    <ol id="lines" class="lines"></ol>
+
+    <footer class="dock">
+      <canvas id="wave" class="wave" aria-label="播放进度，点按或拖动跳转" role="slider" tabindex="0"></canvas>
+      <div class="dock-row">
+        <span id="clock" class="clock mono">00:00.00</span>
+        <div class="transport">
+          <button id="btn-rew" class="round" type="button" aria-label="后退 5 秒">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7 5 12l6 5V7Zm8 0-6 5 6 5V7Z"/></svg>
+          </button>
+          <button id="btn-play" class="round play" type="button" aria-label="播放">
+            <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+          </button>
+          <button id="btn-fwd" class="round" type="button" aria-label="前进 5 秒">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 7l6 5-6 5V7ZM5 7l6 5-6 5V7Z"/></svg>
+          </button>
+        </div>
+        <button id="btn-undo" class="text-btn small" type="button" disabled>撤销</button>
+      </div>
+      <button id="btn-tap" class="tap" type="button"><span>打点</span><small id="tap-hint"></small></button>
+    </footer>
+  </section>
+
+  <!-- 单句微调 -->
+  <dialog id="sheet-line" class="sheet" aria-labelledby="sl-text">
+    <div class="grab" aria-hidden="true"></div>
+    <p id="sl-text" class="sl-text"></p>
+    <p id="sl-time" class="sl-time mono"></p>
+    <div class="nudge">
+      <button type="button" data-nudge="-0.5">−0.5</button>
+      <button type="button" data-nudge="-0.1">−0.1</button>
+      <button type="button" data-nudge="0.1">+0.1</button>
+      <button type="button" data-nudge="0.5">+0.5</button>
     </div>
-  </div>
+    <button id="sl-now" class="cta" type="button">设为当前播放位置 <span id="sl-now-time" class="mono"></span></button>
+    <div class="sheet-row">
+      <button id="sl-play" class="ghost" type="button">从这句播放</button>
+      <button class="ghost" type="button" data-close>完成</button>
+    </div>
+  </dialog>
+
+  <!-- 导出 -->
+  <dialog id="sheet-export" class="sheet" aria-labelledby="ex-title">
+    <div class="grab" aria-hidden="true"></div>
+    <h2 id="ex-title" class="sheet-title">导出</h2>
+    <div class="seg" role="radiogroup" aria-label="格式">
+      <button type="button" role="radio" data-format="lrc" aria-checked="true">LRC 逐行</button>
+      <button type="button" role="radio" data-format="klrc" aria-checked="false">LRC 逐字</button>
+      <button type="button" role="radio" data-format="srt" aria-checked="false">SRT 字幕</button>
+    </div>
+    <p id="ex-desc" class="fine"></p>
+    <textarea id="export-text" class="mono" rows="8" readonly aria-label="导出内容"></textarea>
+    <button id="btn-save" class="cta" type="button">存储 / 分享文件</button>
+    <div class="sheet-row">
+      <button id="btn-copy" class="ghost" type="button">复制文字</button>
+      <button class="ghost" type="button" data-close>关闭</button>
+    </div>
+  </dialog>
+
   <audio id="audio" preload="auto" playsinline></audio>
   <div id="toast" class="toast" role="status" hidden></div>
 

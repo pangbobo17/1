@@ -1,23 +1,48 @@
-// 解码音频 → 16kHz 单声道 → 交给 Whisper worker
+// 解码音频、生成波形、重采样为 16kHz 单声道后交给 Whisper worker
 let worker = null;
 
-export async function decodeTo16k(file) {
+export async function decodeFile(file) {
   const buf = await file.arrayBuffer();
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
-  const decoded = await ctx.decodeAudioData(buf);
-  ctx.close?.();
-  const length = Math.ceil(decoded.duration * 16000);
-  const offline = new OfflineAudioContext(1, length, 16000);
+  try {
+    return await ctx.decodeAudioData(buf);
+  } finally {
+    ctx.close?.();
+  }
+}
+
+/** 每个区间的峰值（0..1），用来画波形 */
+export function computePeaks(buffer, bins = 1200) {
+  const ch = buffer.getChannelData(0);
+  const size = Math.max(1, Math.floor(ch.length / bins));
+  const peaks = new Float32Array(bins);
+  let max = 0;
+  for (let b = 0; b < bins; b++) {
+    let m = 0;
+    const end = Math.min(ch.length, (b + 1) * size);
+    for (let i = b * size; i < end; i += 8) {
+      const v = Math.abs(ch[i]);
+      if (v > m) m = v;
+    }
+    peaks[b] = m;
+    if (m > max) max = m;
+  }
+  if (max > 0) for (let b = 0; b < bins; b++) peaks[b] /= max;
+  return peaks;
+}
+
+export async function to16k(buffer) {
+  const offline = new OfflineAudioContext(1, Math.ceil(buffer.duration * 16000), 16000);
   const src = offline.createBufferSource();
-  src.buffer = decoded;
+  src.buffer = buffer;
   src.connect(offline.destination);
   src.start();
   const rendered = await offline.startRendering();
-  return { samples: rendered.getChannelData(0), duration: decoded.duration };
+  return rendered.getChannelData(0);
 }
 
-/** onProgress({stage: 'download'|'transcribe', value: 0..1}) */
+/** onProgress({stage: 'download'|'transcribe', value: 0..1, loaded?, total?}) */
 export function transcribe(samples, { model, language }, onProgress) {
   worker ??= new Worker(new URL('./asr-worker.js', import.meta.url), { type: 'module' });
   return new Promise((resolve, reject) => {

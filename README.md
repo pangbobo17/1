@@ -14,6 +14,7 @@
 - 对齐算法 `web/align.js` 与 Swift 版一致，测试：`node web/align.test.mjs`
 - 部署：推送到 `master` 后由 `.github/workflows/pages.yml` 发布到 GitHub Pages（仓库需公开，或使用付费 GitHub 方案；并在 Settings → Pages 里把 Source 设为 GitHub Actions）
 - 本地预览：`cd web && python3 -m http.server`，然后打开 http://localhost:8000
+- 像 App 一样使用：在 Safari 里点分享按钮 →“添加到主屏幕”。从桌面打开时全屏显示，页面本身可离线打开（`sw.js` 缓存）
 
 ---
 
