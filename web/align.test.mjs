@@ -28,6 +28,9 @@ assert.deepEqual(alignLyrics(['一二', '三四'], [], 8).map((l) => l.start), [
 assert.deepEqual(segmentLines([{ text: 'hello', start: 0, end: 0.5 }, { text: 'world', start: 0.6, end: 1 },
   { text: 'again', start: 3, end: 3.5 }]).map((l) => l.text), ['hello world', 'again']);
 
+assert.deepEqual(segmentLines([{ text: '大家好', start: 0, end: 1 }, { text: '欢迎来到', start: 1, end: 2 },
+  { text: '我的频道', start: 2, end: 3 }], 0.7, 10).map((l) => l.text), ['大家好欢迎来到', '我的频道']);
+
 const line = { text: '你好', start: 65.432, end: 66, words: [
   { text: '你', start: 65.432, end: 65.7 }, { text: '好', start: 65.7, end: 66 }] };
 assert.equal(exportLyrics([line], 'lrc'), '[01:05.43]你好\n');

@@ -70,6 +70,8 @@ svg .fillp { fill: currentColor; stroke: none; }
 .card-kicker { font-size: 0.78rem; color: var(--ink-3); letter-spacing: 0.08em; }
 
 /* 制作页 */
+.seg.mode-seg { flex: none; grid-template-columns: 1fr 1fr; margin-bottom: 12px; }
+.seg.mode-seg button { padding: 9px 2px; font-size: 0.92rem; }
 .song { display: block; padding: 14px 16px; cursor: pointer; min-width: 0; }
 .song-empty { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
 .song-empty-text { display: grid; font-weight: 700; font-size: 1.05rem; }
@@ -221,6 +223,7 @@ svg .fillp { fill: currentColor; stroke: none; }
 .project-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-meta { font-size: 0.78rem; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-meta .warn { color: var(--warn); }
+.badge { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; background: var(--card-2); color: var(--ink-2); font-size: 0.68rem; font-weight: 600; vertical-align: 2px; }
 .project .del { flex: none; padding: 8px 12px; border-radius: 10px; background: rgb(255 107 107 / 0.16); color: var(--danger); font-size: 0.85rem; font-weight: 700; }
 .project.active { border-color: hsl(var(--h) 90% 66% / 0.5); }
 
@@ -295,7 +298,12 @@ svg .fillp { fill: currentColor; stroke: none; }
 #lyrics::placeholder { color: var(--ink-3); }
 #lyrics:focus { outline: none; }
 .sheet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.sl-text { margin: 4px 0 0; font-size: 1.25rem; font-weight: 800; line-height: 1.35; }
+.sl-text {
+  margin: 4px 0 0; width: 100%; font: 800 1.2rem/1.4 var(--font-ui); color: var(--ink);
+  background: rgb(0 0 0 / 0.25); border: 1px solid transparent; border-radius: 14px; padding: 10px 12px; resize: none;
+}
+.sl-text:focus { outline: none; border-color: var(--hair); }
+.text-btn.danger { color: var(--danger); justify-self: center; }
 .sl-time { margin: 0; font-size: 2.4rem; font-weight: 700; color: var(--accent); }
 .nudge { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .nudge button { padding: 12px 0; border-radius: 12px; background: var(--card-2); font: 700 0.95rem var(--font-mono); }

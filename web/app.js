@@ -9,6 +9,7 @@ const els = {
   // 制作
   audioInput: $('audio-input'), song: document.querySelector('.song'), songEmpty: $('song-empty'), songInfo: $('song-info'),
   songName: $('song-name'), songMeta: $('song-meta'), songWave: $('song-wave'),
+  modeSeg: $('mode-seg'), subtitleCard: $('subtitle-card'), songEmptyTitle: $('song-empty-title'), songEmptyHint: $('song-empty-hint'),
   lyricsCard: $('lyrics-card'), lyricsCount: $('lyrics-count'), lyricsPreview: $('lyrics-preview'),
   sheetLyrics: $('sheet-lyrics'), lyrics: $('lyrics'), lyricsFile: $('lyrics-file'),
   auto: $('btn-auto'), manual: $('btn-manual'),
@@ -17,7 +18,7 @@ const els = {
   tools: $('btn-tools'), exportBtn: $('btn-export'), editorTitle: $('editor-title'), editorSub: $('editor-sub'),
   editorEmpty: $('editor-empty'), needAudio: $('need-audio'), lines: $('lines'), dock: $('dock'), wave: $('wave'), clock: $('clock'),
   rew: $('btn-rew'), play: $('btn-play'), fwd: $('btn-fwd'), undo: $('btn-undo'), tap: $('btn-tap'), tapHint: $('tap-hint'),
-  sheetLine: $('sheet-line'), slText: $('sl-text'), slTime: $('sl-time'), slNow: $('sl-now'), slNowTime: $('sl-now-time'), slPlay: $('sl-play'),
+  sheetLine: $('sheet-line'), slText: $('sl-text'), slTime: $('sl-time'), slNow: $('sl-now'), slNowTime: $('sl-now-time'), slPlay: $('sl-play'), slDelete: $('sl-delete'),
   sheetTools: $('sheet-tools'), speedSeg: $('speed-seg'), clearTimes: $('btn-clear-times'),
   sheetExport: $('sheet-export'), exDesc: $('ex-desc'), exportText: $('export-text'), save: $('btn-save'), copy: $('btn-copy'),
   // 作品
@@ -41,6 +42,17 @@ const MODELS = [
   { value: 'onnx-community/whisper-base_timestamped', label: '标准', desc: '约 80MB，推荐' },
   { value: 'onnx-community/whisper-small_timestamped', label: '精准', desc: '约 250MB，更准，但慢不少' },
 ];
+const SCRIPTS = [
+  { value: 'hans', label: '简体', desc: '识别结果里的繁体字自动转成简体' },
+  { value: 'hant', label: '繁体', desc: '识别结果统一转成繁体' },
+  { value: 'raw', label: '保持原样', desc: '不做转换' },
+];
+const LINE_LENGTHS = [
+  { value: 'short', label: '短', desc: '一行约 10 个字，适合竖屏视频' },
+  { value: 'normal', label: '标准', desc: '一行约 16 个字' },
+  { value: 'long', label: '长', desc: '一行约 24 个字，适合横屏视频' },
+];
+const MAX_UNITS = { cjk: { short: 10, normal: 16, long: 24 }, latin: { short: 6, normal: 9, long: 13 } };
 const FORMAT_DESC = {
   lrc: '最常用的歌词格式，音乐播放器都支持。',
   klrc: '带每个字的时间，可用于卡拉 OK 逐字变色。',
@@ -51,8 +63,9 @@ const TABS = ['create', 'editor', 'library', 'settings'];
 const state = {
   tab: 'create',
   settings: { defaultLang: 'zh', defaultModel: MODELS[1].value },
-  draft: { file: null, name: '', peaks: null, duration: 0, lang: 'zh', model: MODELS[1].value, decoding: null },
-  project: null,     // {id, name, hue, lyrics, lines, lang, model, duration, peaks, createdAt, updatedAt}
+  draft: { file: null, name: '', peaks: null, duration: 0, lang: 'zh', model: MODELS[1].value, decoding: null,
+    mode: 'lyrics', script: 'hans', lineLength: 'normal' },
+  project: null,     // {id, kind: 'lyrics'|'subtitle', name, hue, lyrics, lines, lang, model, duration, peaks, createdAt, updatedAt}
   hasAudio: false,
   undo: [],
   current: -1,
@@ -155,9 +168,11 @@ document.addEventListener('click', (e) => {
 // ---------- 选项（制作页本次 / 设置页默认） ----------
 
 const PICKERS = {
-  lang: { title: '演唱语言', list: LANGS, get: () => state.draft.lang, set: (v) => { state.draft.lang = v; } },
+  lang: { title: '语言', list: LANGS, get: () => state.draft.lang, set: (v) => { state.draft.lang = v; } },
   model: { title: '识别模型', list: MODELS, get: () => state.draft.model, set: (v) => { state.draft.model = v; } },
-  defaultLang: { title: '默认演唱语言', list: LANGS, get: () => state.settings.defaultLang, set: (v) => { state.settings.defaultLang = v; state.draft.lang = v; } },
+  script: { title: '中文字形', list: SCRIPTS, get: () => state.draft.script, set: (v) => { state.draft.script = v; } },
+  lineLength: { title: '每行长度', list: LINE_LENGTHS, get: () => state.draft.lineLength, set: (v) => { state.draft.lineLength = v; } },
+  defaultLang: { title: '默认语言', list: LANGS, get: () => state.settings.defaultLang, set: (v) => { state.settings.defaultLang = v; state.draft.lang = v; } },
   defaultModel: { title: '默认识别模型', list: MODELS, get: () => state.settings.defaultModel, set: (v) => { state.settings.defaultModel = v; state.draft.model = v; } },
 };
 
@@ -169,7 +184,7 @@ document.addEventListener('click', async (e) => {
   if (value == null) return;
   p.set(value);
   store.set('lyricsync.settings', state.settings);
-  store.set('lyricsync.draft', { lyrics: els.lyrics.value, lang: state.draft.lang, model: state.draft.model });
+  saveDraft();
   syncPickerValues();
   if (row.dataset.pick === 'lang' || row.dataset.pick === 'defaultLang') { if (state.draft.lang === 'zh') loadPinyin(); }
 });
@@ -205,7 +220,20 @@ els.lyricsCard.addEventListener('click', () => {
   if (!els.lyrics.value) els.lyrics.focus();
 });
 els.lyrics.addEventListener('input', () => {
-  store.set('lyricsync.draft', { lyrics: els.lyrics.value, lang: state.draft.lang, model: state.draft.model });
+  saveDraft();
+  renderCreate();
+});
+
+function saveDraft() {
+  const { lang, model, mode, script, lineLength } = state.draft;
+  store.set('lyricsync.draft', { lyrics: els.lyrics.value, lang, model, mode, script, lineLength });
+}
+
+els.modeSeg.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mode]');
+  if (!b) return;
+  state.draft.mode = b.dataset.mode;
+  saveDraft();
   renderCreate();
 });
 els.lyricsFile.addEventListener('change', async () => {
@@ -227,11 +255,18 @@ async function readText(file) {
 
 function renderCreate() {
   const d = state.draft;
-  const lyricLines = cleanLyrics(els.lyrics.value);
+  const subtitle = d.mode === 'subtitle';
+  for (const b of els.modeSeg.querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.mode === d.mode));
+  els.lyricsCard.hidden = subtitle;
+  els.subtitleCard.hidden = !subtitle;
+  els.manual.hidden = subtitle;
+  els.songEmptyTitle.textContent = subtitle ? '选择音频或视频' : '选择歌曲';
+  els.songEmptyHint.textContent = subtitle ? 'mp3、m4a、mp4、mov 都可以' : 'mp3、m4a、wav 都可以';
+  const lyricLines = subtitle ? [] : cleanLyrics(els.lyrics.value);
   els.lyricsCount.textContent = lyricLines.length ? `· ${lyricLines.length} 行` : '';
   els.lyricsPreview.textContent = lyricLines.length ? lyricLines.slice(0, 3).join('\n') : '粘贴或导入歌词。不填也行，会自动识别。';
   els.lyricsPreview.classList.toggle('empty', !lyricLines.length);
-  els.auto.textContent = lyricLines.length ? '自动对齐' : '自动识别歌词';
+  els.auto.textContent = subtitle ? '开始识别字幕' : lyricLines.length ? '自动对齐' : '自动识别歌词';
   els.auto.disabled = !d.file || state.busy;
   els.manual.disabled = !d.file || !lyricLines.length || state.busy;
 
@@ -270,13 +305,34 @@ async function loadPinyin() {
   return pinyinFn;
 }
 
+const converters = {};
+/** 中文简繁转换（opencc-js，用到时才加载） */
+async function convertScript(lines, script) {
+  if (script === 'raw') return lines;
+  try {
+    if (!converters[script]) {
+      const file = script === 'hans' ? 't2cn' : 'cn2t';
+      const O = await import(`https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/esm/${file}.js`);
+      converters[script] = script === 'hans' ? O.Converter({ from: 'tw', to: 'cn' }) : O.Converter({ from: 'cn', to: 'tw' });
+    }
+    const conv = converters[script];
+    for (const line of lines) {
+      line.text = conv(line.text);
+      for (const w of line.words) w.text = conv(w.text);
+    }
+  } catch {
+    toast('简繁转换没加载成功，先保持原样');
+  }
+  return lines;
+}
+
 /** 用当前草稿新建一个作品（音频一起存进本机） */
-async function createProject(lines) {
+async function createProject(lines, kind) {
   const d = state.draft;
   await d.decoding;
   const now = Date.now();
   const project = {
-    id: newId(), name: stripExt(d.name), hue: songHue(d.name), lyrics: els.lyrics.value,
+    id: newId(), kind, name: stripExt(d.name), hue: songHue(d.name), lyrics: kind === 'subtitle' ? '' : els.lyrics.value,
     lines, lang: d.lang, model: d.model, duration: d.duration, peaks: d.peaks, createdAt: now, updatedAt: now,
   };
   try {
@@ -310,22 +366,27 @@ els.auto.addEventListener('click', async () => {
         showProgress('正在听歌识词…', p.value);
       }
     });
-    const lyricLines = cleanLyrics(els.lyrics.value);
+    const subtitle = d.mode === 'subtitle';
+    const lyricLines = subtitle ? [] : cleanLyrics(els.lyrics.value);
     let lines;
     if (lyricLines.length) {
       showProgress('正在逐行对齐…', 1);
       const phonetic = d.lang === 'zh' ? await loadPinyin() : null;
       lines = alignLyrics(lyricLines, words, d.duration, { phonetic });
     } else {
-      lines = segmentLines(words);
+      const cjk = ['zh', 'yue', 'ja', 'ko'].includes(d.lang);
+      const maxUnits = MAX_UNITS[cjk ? 'cjk' : 'latin'][subtitle ? d.lineLength : 'normal'];
+      lines = segmentLines(words, 0.7, maxUnits);
+      if (d.lang === 'zh' || d.lang === 'yue') lines = await convertScript(lines, subtitle ? d.script : 'hans');
     }
     if (!lines.length) {
       showProgress('没有识别到人声。检查一下演唱语言，或者用手动打点。', 0, true);
       return;
     }
     els.progress.hidden = true;
-    await createProject(lines);
+    await createProject(lines, subtitle ? 'subtitle' : 'lyrics');
     switchTab('editor');
+    if (subtitle) { toast(`识别出 ${lines.length} 条字幕，点时间可以改字`); return; }
     const low = lines.filter((l) => l.confidence != null && l.confidence < 0.5).length;
     toast(low ? `完成，有 ${low} 句需要检查` : '完成，播放核对一下');
   } catch (e) {
@@ -342,7 +403,7 @@ els.manual.addEventListener('click', async () => {
   const lyricLines = cleanLyrics(els.lyrics.value);
   if (!lyricLines.length || !state.draft.file) return;
   els.progress.hidden = true;
-  await createProject(lyricLines.map((text) => ({ text, start: null, end: null, words: [], confidence: null })));
+  await createProject(lyricLines.map((text) => ({ text, start: null, end: null, words: [], confidence: null })), 'lyrics');
   switchTab('editor');
   toast('播放歌曲，每句开口时点“打点”');
 });
@@ -352,6 +413,7 @@ els.manual.addEventListener('click', async () => {
 async function openProject(project, audioBlob) {
   els.audio.pause();
   state.project = project;
+  state.format = project.kind === 'subtitle' ? 'srt' : 'lrc';
   state.undo = [];
   state.current = -1;
   store.set('lyricsync.last', project.id);
@@ -411,6 +473,12 @@ async function renderLibrary() {
       w.className = 'warn';
       w.textContent = unset ? ` · ${unset} 句没打点` : ` · ${low} 句需检查`;
       meta.append(w);
+    }
+    if (p.kind === 'subtitle') {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = '字幕';
+      name.append(badge);
     }
     text.append(name, meta);
     open.append(thumb, text);
@@ -503,7 +571,8 @@ function updateEditorMeta() {
   const lines = state.project.lines;
   const unset = lines.filter((l) => l.start == null).length;
   const low = lines.filter((l) => l.confidence != null && l.confidence < 0.5).length;
-  els.editorSub.textContent = unset ? `还有 ${unset} 句没打点` : low ? `${lines.length} 句 · ${low} 句需检查` : `${lines.length} 句`;
+  const unit = state.project.kind === 'subtitle' ? '条字幕' : '句';
+  els.editorSub.textContent = unset ? `还有 ${unset} 句没打点` : low ? `${lines.length} ${unit} · ${low} 句需检查` : `${lines.length} ${unit}`;
   els.undo.disabled = state.undo.length === 0;
 }
 
@@ -567,11 +636,11 @@ function setStart(i, time) {
   if (prev && prev.start != null && !prev.words.length && t > prev.start) prev.end = t;
 }
 
-function edit(fn) {
+function edit(fn, { rebuild = false } = {}) {
   state.undo.push(JSON.stringify(state.project.lines));
   if (state.undo.length > 100) state.undo.shift();
   fn();
-  refreshRows();
+  if (rebuild) renderLines(); else refreshRows();
   saveProject();
 }
 
@@ -593,7 +662,8 @@ els.undo.addEventListener('click', () => {
   const prev = state.undo.pop();
   if (!prev) return;
   state.project.lines = JSON.parse(prev);
-  refreshRows();
+  renderLines();
+  if (els.sheetLine.open) fillLineSheet();
   saveProject();
 });
 
@@ -614,6 +684,7 @@ els.tap.addEventListener('click', () => {
 // 单句微调
 function openLineSheet(i) {
   state.sheetIndex = i;
+  resetDeleteButton();
   fillLineSheet();
   els.sheetLine.showModal();
 }
@@ -621,7 +692,7 @@ function openLineSheet(i) {
 function fillLineSheet() {
   const line = state.project?.lines[state.sheetIndex];
   if (!line) return;
-  els.slText.textContent = line.text;
+  if (document.activeElement !== els.slText) els.slText.value = line.text;
   els.slTime.textContent = line.start == null ? '--:--.--' : lrcTime(line.start);
   els.slNowTime.textContent = lrcTime(els.audio.currentTime || 0);
   els.slPlay.disabled = line.start == null || !state.hasAudio;
@@ -635,6 +706,37 @@ els.sheetLine.addEventListener('click', (e) => {
 });
 els.slNow.addEventListener('click', () => edit(() => setStart(state.sheetIndex, els.audio.currentTime || 0)));
 els.slPlay.addEventListener('click', () => { els.sheetLine.close(); playFrom(state.sheetIndex); });
+
+// 改字：文字变了就去掉逐字时间（字数可能对不上了），保留整句时间
+els.slText.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); els.slText.blur(); }
+});
+els.slText.addEventListener('change', () => {
+  const i = state.sheetIndex;
+  const line = state.project?.lines[i];
+  const text = els.slText.value.replace(/\s*\n\s*/g, ' ').trim();
+  if (!line || !text || text === line.text) { if (line) els.slText.value = line.text; return; }
+  edit(() => { line.text = text; line.words = []; }, { rebuild: true });
+});
+
+let deleteArmed = null;
+function resetDeleteButton() {
+  clearTimeout(deleteArmed);
+  deleteArmed = null;
+  els.slDelete.textContent = '删除这一句';
+}
+els.slDelete.addEventListener('click', () => {
+  if (!deleteArmed) {
+    els.slDelete.textContent = '再点一次确认删除';
+    deleteArmed = setTimeout(resetDeleteButton, 3000);
+    return;
+  }
+  resetDeleteButton();
+  const i = state.sheetIndex;
+  edit(() => { state.project.lines.splice(i, 1); }, { rebuild: true });
+  els.sheetLine.close();
+  toast('已删除，可以撤销');
+});
 
 // 工具
 els.tools.addEventListener('click', () => { syncSpeed(); resetClearButton(); els.sheetTools.showModal(); });
@@ -809,7 +911,11 @@ window.addEventListener('resize', () => {
 
 // ---------- 导出 ----------
 
-els.exportBtn.addEventListener('click', () => { updateExport(); els.sheetExport.showModal(); });
+els.exportBtn.addEventListener('click', () => {
+  for (const b of els.sheetExport.querySelectorAll('.seg button')) b.setAttribute('aria-checked', String(b.dataset.format === state.format));
+  updateExport();
+  els.sheetExport.showModal();
+});
 
 els.sheetExport.querySelector('.seg').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-format]');
@@ -885,6 +991,7 @@ async function start() {
   els.lyrics.value = draft.lyrics ?? '';
   state.draft.lang = draft.lang ?? state.settings.defaultLang;
   state.draft.model = draft.model ?? state.settings.defaultModel;
+  for (const k of ['mode', 'script', 'lineLength']) if (draft[k]) state.draft[k] = draft[k];
 
   // 旧版（单页）保存的时间轴迁移成一个作品
   const old = store.get('lyricsync.v2', null);

@@ -1,6 +1,6 @@
 // 离线缓存：页面本身“网络优先”（有新版本就用新版本），CDN 上固定版本的库“缓存优先”
 // 识别模型由 transformers.js 自己缓存，这里不重复处理
-const CACHE = 'lyricsync-v3';
+const CACHE = 'lyricsync-v4';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'align.js', 'asr.js', 'asr-worker.js', 'db.js',
   'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png'];
 

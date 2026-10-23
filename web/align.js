@@ -171,12 +171,14 @@ export function segmentLines(segments, pause = 0.7, maxUnits = 16) {
   for (const seg of segments) {
     const t = seg.text.trim();
     if (!t) continue;
+    const segUnits = tokenize(t).length;
     const prev = words[words.length - 1];
-    if (prev && (seg.start - prev.end >= pause || units >= maxUnits)) flush();
+    // 停顿够长，或者放进这一段就超出每行上限，就先换行
+    if (prev && (seg.start - prev.end >= pause || units + segUnits > maxUnits)) flush();
     const last = words[words.length - 1];
     if (last && needsSpace(last.text.slice(-1), t[0])) last.text += ' ';
     words.push({ text: t, start: seg.start, end: seg.end, matched: true });
-    units += tokenize(t).length;
+    units += segUnits;
     if (/[。！？!?.]$/u.test(t)) flush();
   }
   flush();

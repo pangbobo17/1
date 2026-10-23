@@ -24,14 +24,19 @@
   <main id="view-create" class="view" aria-labelledby="create-title">
     <header class="large-head">
       <h1 id="create-title">制作</h1>
-      <p class="head-sub">导入歌曲和歌词，自动生成逐行时间轴</p>
+      <p class="head-sub">给歌曲配歌词时间轴，或者直接识别成字幕</p>
     </header>
+
+    <div class="seg mode-seg" role="radiogroup" aria-label="制作方式" id="mode-seg">
+      <button type="button" role="radio" data-mode="lyrics" aria-checked="true">对齐歌词</button>
+      <button type="button" role="radio" data-mode="subtitle" aria-checked="false">识别字幕</button>
+    </div>
 
     <div class="stack">
       <label class="card song" for="audio-input">
         <span class="song-empty" id="song-empty">
           <span class="plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-          <span class="song-empty-text">选择歌曲<small>mp3、m4a、wav 都可以</small></span>
+          <span class="song-empty-text"><span id="song-empty-title">选择歌曲</span><small id="song-empty-hint">mp3、m4a、wav 都可以</small></span>
         </span>
         <span class="song-info" id="song-info" hidden>
           <span class="song-name" id="song-name"></span>
@@ -39,7 +44,7 @@
           <canvas id="song-wave" class="song-wave" aria-hidden="true"></canvas>
         </span>
       </label>
-      <input id="audio-input" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.flac" hidden>
+      <input id="audio-input" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.mp4,.mov" hidden>
 
       <button id="lyrics-card" class="card lyrics-card" type="button">
         <span class="card-kicker">歌词 <span id="lyrics-count"></span></span>
@@ -47,8 +52,14 @@
         <span class="chev" aria-hidden="true">›</span>
       </button>
 
+      <div id="subtitle-card" class="card list" hidden>
+        <span class="list-caption">字幕</span>
+        <button class="list-row" type="button" data-pick="script"><span>中文字形</span><span class="list-value" data-show="script"></span></button>
+        <button class="list-row" type="button" data-pick="lineLength"><span>每行长度</span><span class="list-value" data-show="lineLength"></span></button>
+      </div>
+
       <div class="card list">
-        <button class="list-row" type="button" data-pick="lang"><span>演唱语言</span><span class="list-value" data-show="lang"></span></button>
+        <button class="list-row" type="button" data-pick="lang"><span>语言</span><span class="list-value" data-show="lang"></span></button>
         <button class="list-row" type="button" data-pick="model"><span>识别模型</span><span class="list-value" data-show="model"></span></button>
       </div>
     </div>
@@ -126,7 +137,7 @@
     <div class="stack">
       <div class="card list">
         <span class="list-caption">新建歌曲的默认选项</span>
-        <button class="list-row" type="button" data-pick="defaultLang"><span>演唱语言</span><span class="list-value" data-show="defaultLang"></span></button>
+        <button class="list-row" type="button" data-pick="defaultLang"><span>语言</span><span class="list-value" data-show="defaultLang"></span></button>
         <button class="list-row" type="button" data-pick="defaultModel"><span>识别模型</span><span class="list-value" data-show="defaultModel"></span></button>
       </div>
       <div class="card list">
@@ -189,7 +200,7 @@
   <!-- 单句微调 -->
   <dialog id="sheet-line" class="sheet" aria-labelledby="sl-text">
     <div class="grab" aria-hidden="true"></div>
-    <p id="sl-text" class="sl-text"></p>
+    <textarea id="sl-text" class="sl-text" rows="2" enterkeyhint="done" aria-label="这一句的文字（可修改）"></textarea>
     <p id="sl-time" class="sl-time mono"></p>
     <div class="nudge">
       <button type="button" data-nudge="-0.5">−0.5</button>
@@ -202,6 +213,7 @@
       <button id="sl-play" class="ghost" type="button">从这句播放</button>
       <button class="ghost" type="button" data-close>完成</button>
     </div>
+    <button id="sl-delete" class="text-btn danger" type="button">删除这一句</button>
   </dialog>
 
   <!-- 工具 -->
