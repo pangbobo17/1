@@ -103,4 +103,15 @@ final class LyricsAlignCoreTests: XCTestCase {
         XCTAssertEqual(aligned.end!, 4, accuracy: 0.001)
         XCTAssertEqual(aligned.words[1].start, 3.5, accuracy: 0.001)
     }
+
+    func testLinkParser() {
+        XCTAssertEqual(LinkParser.findURL(in: "复制打开抖音，看看【作品】 https://v.douyin.com/iAbC/ 复制此链接")?.absoluteString, "https://v.douyin.com/iAbC/")
+        XCTAssertEqual(LinkParser.findURL(in: "【晴天-哔哩哔哩】 https://b23.tv/xyz"), URL(string: "https://b23.tv/xyz"))
+        XCTAssertNil(LinkParser.findURL(in: "没有链接"))
+        XCTAssertEqual(LinkParser.platform(of: URL(string: "https://v.douyin.com/x/")!), "抖音")
+        XCTAssertEqual(LinkParser.platform(of: URL(string: "https://music.163.com/song?id=1")!), "网易云音乐")
+        XCTAssertNil(LinkParser.platform(of: URL(string: "https://notbilibili.com/a.mp3")!))
+        XCTAssertNil(LinkParser.platform(of: URL(string: "https://cdn.example.com/ep1.mp3")!))
+        XCTAssertEqual(LinkParser.name(from: URL(string: "https://example.com/a/%E6%99%B4%E5%A4%A9.mp3?x=1")!), "晴天")
+    }
 }

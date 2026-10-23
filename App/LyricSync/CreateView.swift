@@ -5,6 +5,7 @@ struct CreateView: View {
     @Environment(AppModel.self) private var app
     @State private var pickingAudio = false
     @State private var editingLyrics = false
+    @State private var importingLink = false
 
     var body: some View {
         @Bindable var app = app
@@ -63,6 +64,12 @@ struct CreateView: View {
                 if case .success(let url) = result { Task { await app.importAudio(url) } }
             }
             .sheet(isPresented: $editingLyrics) { LyricsSheet() }
+            .sheet(isPresented: $importingLink) { LinkSheet() }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("从链接导入", systemImage: "link") { importingLink = true }
+                }
+            }
         }
     }
 
@@ -230,5 +237,64 @@ struct LyricsSheet: View {
                 .onAppear { if app.lyricsText.isEmpty { focused = true } }
         }
         .presentationDetents([.large])
+    }
+}
+
+/// 粘贴音频/视频文件的链接导入
+struct LinkSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var error: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                TextField("粘贴音频或视频文件的链接，例如 https://…/song.mp3", text: $text, axis: .vertical)
+                    .lineLimit(3...5)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focused)
+                    .padding(12)
+                    .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Text("需要是文件本身的链接（mp3、m4a、mp4 等）。抖音、B站、网易云等平台的分享链接是网页，没法直接读取，请先保存到手机再从文件导入。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if let error {
+                    Text(error).font(.callout).foregroundStyle(.orange)
+                }
+                Spacer(minLength: 0)
+                Button {
+                    Task {
+                        error = await app.importFromLink(text)
+                        if error == nil {
+                            app.toast("已导入")
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    Group {
+                        if app.isImportingAudio { ProgressView() } else { Text("导入").font(.headline) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || app.isImportingAudio)
+            }
+            .padding(20)
+            .navigationTitle("从链接导入")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("取消", systemImage: "xmark") { dismiss() }
+                }
+            }
+            .onAppear { focused = true }
+        }
+        .presentationDetents([.medium])
     }
 }

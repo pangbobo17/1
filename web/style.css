@@ -297,6 +297,12 @@ svg .fillp { fill: currentColor; stroke: none; }
 }
 #lyrics::placeholder { color: var(--ink-3); }
 #lyrics:focus { outline: none; }
+.link-input {
+  width: 100%; font: inherit; font-size: 0.95rem; color: var(--ink); background: rgb(0 0 0 / 0.25);
+  border: 1px solid transparent; border-radius: 14px; padding: 12px 14px; resize: none; word-break: break-all;
+}
+.link-input:focus { outline: none; border-color: var(--hair); }
+.link-error { margin: 0 4px; color: var(--warn); font-size: 0.86rem; line-height: 1.55; }
 .sheet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sl-text {
   margin: 4px 0 0; width: 100%; font: 800 1.2rem/1.4 var(--font-ui); color: var(--ink);

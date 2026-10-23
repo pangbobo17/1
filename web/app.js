@@ -1,6 +1,7 @@
 import { alignLyrics, segmentLines, cleanLyrics, exportLyrics, lrcTime } from './align.js';
 import { decodeFile, computePeaks, to16k, transcribe } from './asr.js';
 import * as db from './db.js';
+import { findURL, platformOf, nameFromURL } from './link.js';
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -13,6 +14,7 @@ const els = {
   lyricsCard: $('lyrics-card'), lyricsCount: $('lyrics-count'), lyricsPreview: $('lyrics-preview'),
   sheetLyrics: $('sheet-lyrics'), lyrics: $('lyrics'), lyricsFile: $('lyrics-file'),
   auto: $('btn-auto'), manual: $('btn-manual'),
+  linkBtn: $('btn-link'), sheetLink: $('sheet-link'), linkInput: $('link-input'), linkError: $('link-error'), linkGo: $('btn-link-go'),
   progress: $('progress'), progressText: $('progress-text'), progressPct: $('progress-pct'), progressFill: $('progress-fill'),
   // 时间轴
   tools: $('btn-tools'), exportBtn: $('btn-export'), editorTitle: $('editor-title'), editorSub: $('editor-sub'),
@@ -205,7 +207,10 @@ function syncPickerValues() {
 els.audioInput.addEventListener('change', () => {
   const file = els.audioInput.files[0];
   els.audioInput.value = '';
-  if (!file) return;
+  if (file) loadDraftFile(file);
+});
+
+function loadDraftFile(file) {
   const d = state.draft;
   Object.assign(d, { file, name: file.name, peaks: null, duration: 0 });
   setHue(songHue(file.name));
@@ -217,6 +222,52 @@ els.audioInput.addEventListener('change', () => {
     renderCreate();
   }).catch(() => toast('这个文件读不出声音，换一个试试'));
   renderCreate();
+}
+
+// ---------- 从链接导入 ----------
+
+els.linkBtn.addEventListener('click', () => {
+  els.linkError.hidden = true;
+  els.sheetLink.showModal();
+  els.linkInput.focus();
+});
+
+function linkFail(msg) {
+  els.linkError.textContent = msg;
+  els.linkError.hidden = false;
+}
+
+els.linkGo.addEventListener('click', async () => {
+  els.linkError.hidden = true;
+  const url = findURL(els.linkInput.value);
+  if (!url) return linkFail('没找到链接，链接要以 http:// 或 https:// 开头。');
+  const platform = platformOf(url);
+  if (platform) return linkFail(`这是${platform}的分享链接，打开是网页，没法直接读取里面的音频。请先在${platform}里保存到手机，再用“选择歌曲”从文件导入。`);
+  els.linkGo.disabled = true;
+  els.linkGo.textContent = '正在下载…';
+  try {
+    let res;
+    try {
+      res = await fetch(url.href);
+    } catch {
+      return linkFail('这个网站不允许网页版读取它的文件（跨域限制）。可以改用 App 版，或者先下载到手机再从文件导入。');
+    }
+    if (!res.ok) return linkFail(`下载失败（${res.status}），链接可能已失效。`);
+    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+    if (type.startsWith('text/html')) return linkFail('这是网页链接，不是音频文件本身。请找文件的直接下载链接，或者先保存到手机再导入。');
+    const blob = await res.blob();
+    const ext = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+      'audio/aac': 'aac', 'audio/flac': 'flac', 'audio/ogg': 'ogg', 'video/mp4': 'mp4', 'video/quicktime': 'mov' }[type];
+    const pathExt = url.pathname.match(/\.([a-z0-9]{2,4})$/i)?.[1];
+    const file = new File([blob], `${nameFromURL(url)}.${pathExt ?? ext ?? 'mp3'}`, { type: blob.type || type });
+    els.sheetLink.close();
+    els.linkInput.value = '';
+    loadDraftFile(file);
+    toast('已导入');
+  } finally {
+    els.linkGo.disabled = false;
+    els.linkGo.textContent = '导入';
+  }
 });
 
 els.lyricsCard.addEventListener('click', () => {

@@ -7,11 +7,11 @@
 
 ## 网页版
 
-四个标签页：**制作**（两种方式：“对齐歌词”导入歌曲和歌词后自动对齐或手动打点；“识别字幕”不需要文字，直接从音频或视频识别出字幕，可选简体 / 繁体和每行长度）、**时间轴**（逐字高亮播放、单句微调、慢放、整体偏移、导出 LRC / 逐字 LRC / SRT）、**作品**（多首歌连同音频保存在本机 IndexedDB）、**设置**（默认语言和模型、存储空间、删除已下载的模型）。
+四个标签页：**制作**（两种方式：“对齐歌词”导入歌曲和歌词后自动对齐或手动打点；“识别字幕”不需要文字，直接从音频或视频识别出字幕，可选简体 / 繁体和每行长度）。也可以粘贴音频 / 视频文件的直链导入（抖音、B站、音乐平台等分享链接是网页，会提示先保存到手机）、**时间轴**（逐字高亮播放、单句微调、慢放、整体偏移、导出 LRC / 逐字 LRC / SRT）、**作品**（多首歌连同音频保存在本机 IndexedDB）、**设置**（默认语言和模型、存储空间、删除已下载的模型）。
 
 - 识别：[transformers.js](https://github.com/huggingface/transformers.js) 运行 Whisper（tiny / base / small，带逐词时间戳），模型首次使用时从 Hugging Face 下载并缓存；支持 WebGPU 时自动使用
 - 普通话用 [pinyin-pro](https://github.com/zh-lx/pinyin-pro) 转拼音比对，识别成同音字或繁体字也能对上
-- 对齐算法 `web/align.js` 与 Swift 版一致，测试：`node web/align.test.mjs`
+- 对齐算法 `web/align.js` 与 Swift 版一致，测试：`node web/align.test.mjs`、`node web/link.test.mjs`
 - 部署：推送到 `master` 后由 `.github/workflows/pages.yml` 发布到 GitHub Pages（仓库需公开，或使用付费 GitHub 方案；并在 Settings → Pages 里把 Source 设为 GitHub Actions）
 - 本地预览：`cd web && python3 -m http.server`，然后打开 http://localhost:8000
 - 像 App 一样使用：在 Safari 里点分享按钮 →“添加到主屏幕”。从桌面打开时全屏显示，页面本身可离线打开（`sw.js` 缓存）
@@ -24,7 +24,7 @@
 
 功能与网页版一致，用 SwiftUI 写成，最低 iOS 26（系统自带液态玻璃标签栏）：
 
-- **制作**：对齐歌词（自动对齐或手动打点）/ 识别字幕（支持视频，简体 / 繁体，每行长度）
+- **制作**：对齐歌词（自动对齐或手动打点）/ 识别字幕（支持视频，简体 / 繁体，每行长度）；右上角可粘贴文件直链导入
 - **时间轴**：逐字高亮、波形进度和每句标记、打点、单句改字 / 微调 / 删除、慢放、整体偏移、撤销、导出 LRC / 逐字 LRC / SRT
 - **作品**：作品和音频保存在 App 的 Documents/Projects
 - **设置**：默认语言和模型、存储占用、删除已下载的模型

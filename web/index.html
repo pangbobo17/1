@@ -22,9 +22,14 @@
 
   <!-- 制作 -->
   <main id="view-create" class="view" aria-labelledby="create-title">
-    <header class="large-head">
-      <h1 id="create-title">制作</h1>
-      <p class="head-sub">给歌曲配歌词时间轴，或者直接识别成字幕</p>
+    <header class="large-head row">
+      <div>
+        <h1 id="create-title">制作</h1>
+        <p class="head-sub">给歌曲配歌词时间轴，或者直接识别成字幕</p>
+      </div>
+      <button id="btn-link" class="glass-btn" type="button" aria-label="从链接导入">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      </button>
     </header>
 
     <div class="seg mode-seg" role="radiogroup" aria-label="制作方式" id="mode-seg">
@@ -188,6 +193,17 @@
     <textarea id="lyrics" spellcheck="false" aria-labelledby="lyr-title"
       placeholder="每行一句，例如：&#10;窗外的麻雀&#10;在电线杆上多嘴&#10;你说这一句&#10;很有夏天的感觉&#10;&#10;不填的话，会自动识别歌词并分行。&#10;已有的 LRC 时间标签、[副歌] 之类的标记会被忽略。"></textarea>
     <input id="lyrics-file" type="file" accept=".txt,.lrc,text/plain" hidden>
+  </dialog>
+
+  <!-- 从链接导入 -->
+  <dialog id="sheet-link" class="sheet" aria-labelledby="link-title">
+    <div class="grab" aria-hidden="true"></div>
+    <h2 id="link-title" class="sheet-title">从链接导入</h2>
+    <textarea id="link-input" class="link-input" rows="3" placeholder="粘贴音频或视频文件的链接，例如 https://…/song.mp3" aria-labelledby="link-title"></textarea>
+    <p class="fine">需要是文件本身的链接（mp3、m4a、mp4 等）。抖音、B站、网易云等平台的分享链接是网页，没法直接读取，请先保存到手机再从文件导入。部分网站不允许网页版读取，可以改用 App 版。</p>
+    <p id="link-error" class="link-error" hidden></p>
+    <button id="btn-link-go" class="cta" type="button">导入</button>
+    <button class="ghost" type="button" data-close>取消</button>
   </dialog>
 
   <!-- 选项列表 -->

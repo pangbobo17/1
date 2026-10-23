@@ -2,6 +2,7 @@ import Foundation
 import LyricsAlignCore
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum LineLength: String, CaseIterable, Identifiable, Codable {
     case short, normal, long
@@ -107,6 +108,54 @@ final class AppModel {
     }
 
     // MARK: - 制作
+
+    enum LinkError: LocalizedError {
+        case noURL, platform(String), webPage, notMedia, http(Int)
+        var errorDescription: String? {
+            switch self {
+            case .noURL: return "没找到链接，链接要以 http:// 或 https:// 开头。"
+            case .platform(let name): return "这是\(name)的分享链接，打开是网页，没法直接读取里面的音频。请先在\(name)里保存到手机，再用“选择歌曲”从文件导入。"
+            case .webPage: return "这是网页链接，不是音频文件本身。请找文件的直接下载链接，或者先保存到手机再导入。"
+            case .notMedia: return "这个链接下载下来不是音频或视频文件。"
+            case .http(let code): return "下载失败（\(code)），链接可能已失效。"
+            }
+        }
+    }
+
+    /// 从链接下载音频/视频文件，再按普通文件导入。返回 nil 表示成功，否则是给用户看的错误
+    func importFromLink(_ text: String) async -> String? {
+        guard let url = LinkParser.findURL(in: text) else { return LinkError.noURL.localizedDescription }
+        if let platform = LinkParser.platform(of: url) { return LinkError.platform(platform).localizedDescription }
+        isImportingAudio = true
+        defer { isImportingAudio = false }
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 60
+            let (downloaded, response) = try await URLSession.shared.download(for: request)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw LinkError.http(http.statusCode)
+            }
+            let mime = response.mimeType ?? ""
+            if mime.hasPrefix("text/html") { throw LinkError.webPage }
+            // 扩展名：优先用服务器给的文件名，其次链接路径，最后按 MIME 类型推断
+            let suggested = response.suggestedFilename.map { URL(fileURLWithPath: $0) }
+            let ext = [suggested?.pathExtension, url.pathExtension, UTType(mimeType: mime)?.preferredFilenameExtension]
+                .compactMap { $0 }.first { !$0.isEmpty } ?? "mp3"
+            guard let type = UTType(filenameExtension: ext), type.conforms(to: .audiovisualContent) else { throw LinkError.notMedia }
+            let name = suggested.map { $0.deletingPathExtension().lastPathComponent }.flatMap { $0.isEmpty ? nil : $0 } ?? LinkParser.name(from: url)
+            let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let dest = dir.appending(path: "\(name).\(ext)")
+            try FileManager.default.moveItem(at: downloaded, to: dest)
+            isImportingAudio = false
+            await importAudio(dest)
+            return draftAudio == nil ? "这个文件读不出声音，换一个试试。" : nil
+        } catch let error as LinkError {
+            return error.localizedDescription
+        } catch {
+            return "下载失败：\(error.localizedDescription)"
+        }
+    }
 
     func importAudio(_ url: URL) async {
         isImportingAudio = true
