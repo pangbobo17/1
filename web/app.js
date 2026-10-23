@@ -380,7 +380,7 @@ els.auto.addEventListener('click', async () => {
       if (d.lang === 'zh' || d.lang === 'yue') lines = await convertScript(lines, subtitle ? d.script : 'hans');
     }
     if (!lines.length) {
-      showProgress('没有识别到人声。检查一下演唱语言，或者用手动打点。', 0, true);
+      showProgress(subtitle ? '没有识别到人声。检查一下语言设置。' : '没有识别到人声。检查一下语言设置，或者用手动打点。', 0, true);
       return;
     }
     els.progress.hidden = true;
