@@ -1,0 +1,73 @@
+name: Niannian
+options:
+  bundleIdPrefix: com.pangbobo17
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  NiannianCore:
+    path: Packages/NiannianCore
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Niannian:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    scheme: {}
+    dependencies:
+      - package: NiannianCore
+      - target: NiannianWidget
+    entitlements:
+      path: App/Niannian.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.pangbobo17.niannian]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 念念
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSMicrophoneUsageDescription: 用麦克风把你说的话记成文字。
+        NSSpeechRecognitionUsageDescription: 把你说的话转成文字，记进小事里。
+        NSPhotoLibraryUsageDescription: 选一张照片来制作 TA 的形象。
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pangbobo17.niannian
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  NiannianWidget:
+    type: app-extension
+    platform: iOS
+    sources: [Widget, Shared]
+    dependencies:
+      - package: NiannianCore
+    entitlements:
+      path: Widget/NiannianWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.pangbobo17.niannian]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: 念念
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pangbobo17.niannian.widget
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES

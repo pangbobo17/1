@@ -1,5 +1,7 @@
 # 歌词对齐（LyricSync）
 
+> 仓库里还有另一个 App：**念念**（记住在意的人和重要日子），在 [`Niannian/`](Niannian/README.md)。
+
 包含两个版本：
 
 - **网页版**（`web/`）：在 iPhone 的 Safari 里直接用，不需要 Mac，也不用上架。识别用 Whisper，在手机浏览器里本地运行。

@@ -1,0 +1,35 @@
+name: Build Niannian
+
+on:
+  push:
+    paths: ['Niannian/**', '.github/workflows/niannian.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: Niannian
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Test core
+        run: swift test --package-path Packages/NiannianCore
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen
+
+      - name: Build app (simulator, unsigned)
+        run: |
+          status=0
+          xcodebuild -project Niannian.xcodeproj -scheme Niannian \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || status=$?
+          grep -E "error:|BUILD (SUCCEEDED|FAILED)" build.log || tail -50 build.log
+          exit $status
