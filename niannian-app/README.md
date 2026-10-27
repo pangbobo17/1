@@ -32,7 +32,7 @@
 
 ### AI
 
-在“我的 → AI 设置”里填上 [Claude API Key](https://console.anthropic.com/settings/keys) 后，团团用 Claude 回答（`src/ai.ts`，模型 `claude-opus-5-5`，开了服务端拒答兜底 `fallbacks: "default"`）。Key 只存在手机上，费用按你自己的 Anthropic 账号算。
+在“我的 → AI 设置”里填上 [Claude API Key](https://console.anthropic.com/settings/keys) 后，团团用 Claude 回答（`src/ai.ts` 直接用 fetch 调 Messages API，模型 `claude-opus-5-5`，开了服务端拒答兜底 `fallbacks: "default"`；官方 SDK 在 Expo Go 里加载会报错，所以没用）。Key 只存在手机上，费用按你自己的 Anthropic 账号算。
 
 不填 Key 也能用：团团会用离线模式，根据记录里的关键词给送礼方向、回顾最近的小事。
 

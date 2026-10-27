@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import type Anthropic from '@anthropic-ai/sdk';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Navigate } from '../../App';
-import { chat, describeError } from '../ai';
+import { chat, type ChatMessage, describeError } from '../ai';
 import { chatSuggestions, newId, offlineReply } from '../core/model';
 import { Mascot } from '../components/Mascot';
 import { TextButton } from '../components/ui';
@@ -43,7 +42,7 @@ export function ChatScreen({ personId, navigate, onClose }: { personId: string; 
     }
     setBusy(true);
     try {
-      const history: Anthropic.MessageParam[] = next.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.text }));
+      const history: ChatMessage[] = next.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.text }));
       const reply = await chat(store.apiKey, person, store.library, history);
       setMessages((m) => [...m, { id: newId(), role: 'assistant', text: reply }]);
     } catch (e) {
