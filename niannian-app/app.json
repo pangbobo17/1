@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "念念",
+    "slug": "niannian",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pangbobo17.niannian",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "选一张照片作为 TA 的形象。"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFE4D6",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.pangbobo17.niannian"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "backgroundColor": "#FFF7EF",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF7EF"
+    }
+  }
+}

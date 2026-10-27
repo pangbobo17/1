@@ -1,6 +1,6 @@
 # 歌词对齐（LyricSync）
 
-> 仓库里还有另一个 App：**念念**（记住在意的人和重要日子），在 [`Niannian/`](Niannian/README.md)。
+> 仓库里还有另一个 App：**念念**（记住在意的人和重要日子，可用 Expo Go 在手机上直接试用），在 [`niannian-app/`](niannian-app/README.md)。
 
 包含两个版本：
 
