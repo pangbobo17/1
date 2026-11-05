@@ -1,0 +1,69 @@
+{
+  "issues": [
+    {
+      "level": "warn",
+      "check": "pop",
+      "where": "line.neo",
+      "frames": "353,387,399,431,465,477,509",
+      "detail": "handF accel 3.8px/f² (clip 2: celebrate)"
+    },
+    {
+      "level": "warn",
+      "check": "speed",
+      "where": "line.ivy",
+      "frames": "379,448",
+      "detail": "handF 16.2px/frame"
+    },
+    {
+      "level": "warn",
+      "check": "pop",
+      "where": "line.ivy",
+      "frames": "413-414,482-483",
+      "detail": "handF accel 4.4px/f² (clip 3: celebrate)"
+    }
+  ],
+  "stats": {
+    "intro.neo": {
+      "maxSpeed": 11.984173447684949,
+      "maxJerk": 2.021827979449854,
+      "maxSlide": 0.00029911629749790336
+    },
+    "bars.neo": {
+      "maxSpeed": 9.550849362513397,
+      "maxJerk": 1.3733734098637331,
+      "maxSlide": 0
+    },
+    "line.neo": {
+      "maxSpeed": 15.050974110849163,
+      "maxJerk": 3.837131955892617,
+      "maxSlide": 0
+    },
+    "line.ivy": {
+      "maxSpeed": 16.199840295977427,
+      "maxJerk": 4.3767791692824325,
+      "maxSlide": 0.16341501676629377
+    },
+    "outro.neo": {
+      "maxSpeed": 11.081784800716088,
+      "maxJerk": 1.6804264972568344,
+      "maxSlide": 0
+    },
+    "outro.ivy": {
+      "maxSpeed": 10.442294102384512,
+      "maxJerk": 1.3207045238224437,
+      "maxSlide": 0
+    }
+  },
+  "charts": [
+    [
+      "bars",
+      60,
+      1.71
+    ],
+    [
+      "line",
+      150,
+      2.3
+    ]
+  ]
+}

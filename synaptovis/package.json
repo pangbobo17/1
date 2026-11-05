@@ -1,0 +1,48 @@
+{
+  "name": "synaptovis",
+  "version": "1.0.0",
+  "description": "SynaptoVis animation system (Remotion + GSAP)",
+  "repository": {},
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.540",
+    "@remotion/fonts": "4.0.540",
+    "@remotion/google-fonts": "4.0.540",
+    "@remotion/layout-utils": "4.0.540",
+    "@remotion/noise": "4.0.540",
+    "@remotion/transitions": "4.0.540",
+    "gsap": "^3.15.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.540"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.540",
+    "@types/react": "19.3.0",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "qc:static": "tsx scripts/qc-static.ts",
+    "qc:layout": "node scripts/qc-layout.mjs",
+    "render:test": "remotion render AnimationQATest out/AnimationQATest.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p --color-space=bt709",
+    "qc:video": "tsx scripts/qc-video.ts out/AnimationQATest.mp4",
+    "qc": "npm run qc:static && npm run qc:layout",
+    "test:render": "npm run qc && npm run render:test && npm run qc:video"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}

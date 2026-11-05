@@ -1,0 +1,327 @@
+{
+  "file": "/home/user/1/synaptovis/out/AnimationQATest.mp4",
+  "meta": {
+    "width": 1280,
+    "height": 720,
+    "fps": "60/1",
+    "frames": 1800,
+    "duration": 30,
+    "codec": "h264",
+    "pix_fmt": "yuv420p"
+  },
+  "transitionWindows": [
+    {
+      "from": 414,
+      "to": 450,
+      "kind": "cardPush"
+    },
+    {
+      "from": 948,
+      "to": 984,
+      "kind": "inkWipe"
+    },
+    {
+      "from": 1422,
+      "to": 1458,
+      "kind": "softFade"
+    }
+  ],
+  "issues": [
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 953,
+      "detail": "Δ80.7 at block (2,0) ≈ px (160,0) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 954,
+      "detail": "Δ91.7 at block (2,2) ≈ px (160,160) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 955,
+      "detail": "Δ76.8 at block (3,1) ≈ px (240,80) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 956,
+      "detail": "Δ97.2 at block (0,1) ≈ px (0,80) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 957,
+      "detail": "Δ100.4 at block (1,0) ≈ px (80,0) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 958,
+      "detail": "Δ101.9 at block (4,5) ≈ px (320,400) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 959,
+      "detail": "Δ102.2 at block (2,2) ≈ px (160,160) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 960,
+      "detail": "Δ105.6 at block (3,1) ≈ px (240,80) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 961,
+      "detail": "Δ111.7 at block (7,3) ≈ px (560,240) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 962,
+      "detail": "Δ111.2 at block (7,6) ≈ px (560,480) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 963,
+      "detail": "Δ114.6 at block (9,2) ≈ px (720,160) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 964,
+      "detail": "Δ108.2 at block (10,2) ≈ px (800,160) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 965,
+      "detail": "Δ106.3 at block (5,8) ≈ px (400,640) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 966,
+      "detail": "Δ103.6 at block (7,4) ≈ px (560,320) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 967,
+      "detail": "Δ108.1 at block (8,4) ≈ px (640,320) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 968,
+      "detail": "Δ103.7 at block (8,6) ≈ px (640,480) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 969,
+      "detail": "Δ109.7 at block (9,6) ≈ px (720,480) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 970,
+      "detail": "Δ102.8 at block (10,5) ≈ px (800,400) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 971,
+      "detail": "Δ108.5 at block (10,8) ≈ px (800,640) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 972,
+      "detail": "Δ94.2 at block (12,4) ≈ px (960,320) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 973,
+      "detail": "Δ88.4 at block (12,7) ≈ px (960,560) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 974,
+      "detail": "Δ80.3 at block (14,3) ≈ px (1120,240) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 976,
+      "detail": "Δ63.8 at block (14,8) ≈ px (1120,640) (transition inkWipe)"
+    },
+    {
+      "level": "info",
+      "check": "pop",
+      "frame": 977,
+      "detail": "Δ52.6 at block (15,7) ≈ px (1200,560) (transition inkWipe)"
+    }
+  ],
+  "perSecond": [
+    {
+      "second": 0,
+      "maxChange": 0.35,
+      "meanChange": 0.06
+    },
+    {
+      "second": 1,
+      "maxChange": 0.93,
+      "meanChange": 0.72
+    },
+    {
+      "second": 2,
+      "maxChange": 1,
+      "meanChange": 0.77
+    },
+    {
+      "second": 3,
+      "maxChange": 0.79,
+      "meanChange": 0.54
+    },
+    {
+      "second": 4,
+      "maxChange": 0.66,
+      "meanChange": 0.41
+    },
+    {
+      "second": 5,
+      "maxChange": 0.35,
+      "meanChange": 0.23
+    },
+    {
+      "second": 6,
+      "maxChange": 4.08,
+      "meanChange": 0.48
+    },
+    {
+      "second": 7,
+      "maxChange": 6.03,
+      "meanChange": 2.74
+    },
+    {
+      "second": 8,
+      "maxChange": 0.72,
+      "meanChange": 0.36
+    },
+    {
+      "second": 9,
+      "maxChange": 0.6,
+      "meanChange": 0.2
+    },
+    {
+      "second": 10,
+      "maxChange": 3.31,
+      "meanChange": 1.86
+    },
+    {
+      "second": 11,
+      "maxChange": 1.5,
+      "meanChange": 0.34
+    },
+    {
+      "second": 12,
+      "maxChange": 0.26,
+      "meanChange": 0.06
+    },
+    {
+      "second": 13,
+      "maxChange": 0.04,
+      "meanChange": 0.02
+    },
+    {
+      "second": 14,
+      "maxChange": 0.36,
+      "meanChange": 0.13
+    },
+    {
+      "second": 15,
+      "maxChange": 13.09,
+      "meanChange": 2.85
+    },
+    {
+      "second": 16,
+      "maxChange": 12.93,
+      "meanChange": 2.96
+    },
+    {
+      "second": 17,
+      "maxChange": 5.81,
+      "meanChange": 2.63
+    },
+    {
+      "second": 18,
+      "maxChange": 5.2,
+      "meanChange": 2.47
+    },
+    {
+      "second": 19,
+      "maxChange": 0.93,
+      "meanChange": 0.62
+    },
+    {
+      "second": 20,
+      "maxChange": 0.39,
+      "meanChange": 0.16
+    },
+    {
+      "second": 21,
+      "maxChange": 1.86,
+      "meanChange": 0.49
+    },
+    {
+      "second": 22,
+      "maxChange": 1.74,
+      "meanChange": 0.94
+    },
+    {
+      "second": 23,
+      "maxChange": 2.21,
+      "meanChange": 1.3
+    },
+    {
+      "second": 24,
+      "maxChange": 1.26,
+      "meanChange": 0.37
+    },
+    {
+      "second": 25,
+      "maxChange": 0.53,
+      "meanChange": 0.26
+    },
+    {
+      "second": 26,
+      "maxChange": 0.72,
+      "meanChange": 0.3
+    },
+    {
+      "second": 27,
+      "maxChange": 0.85,
+      "meanChange": 0.42
+    },
+    {
+      "second": 28,
+      "maxChange": 0.74,
+      "meanChange": 0.35
+    },
+    {
+      "second": 29,
+      "maxChange": 0.4,
+      "meanChange": 0.18
+    }
+  ]
+}
